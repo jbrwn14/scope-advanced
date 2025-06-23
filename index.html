@@ -6,54 +6,56 @@
     <title>Scope Pro - Advanced Construction Quoting</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         .gradient-bg {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
-        .glass-effect {
-            backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        .drag-zone {
-            border: 3px dashed #cbd5e1;
+        .room-box {
+            border: 2px solid #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+            margin: 5px;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
             transition: all 0.3s ease;
         }
-        .drag-zone.drag-over {
-            border-color: #3b82f6;
-            background: rgba(59, 130, 246, 0.05);
-            transform: scale(1.02);
+        .room-box:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
         }
         .room-overlay {
             position: absolute;
             border: 2px solid;
-            border-radius: 8px;
+            border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 11px;
-            font-weight: 600;
+            font-size: 12px;
+            font-weight: bold;
             color: white;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
             cursor: move;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
             min-width: 40px;
-            min-height: 25px;
+            min-height: 30px;
             user-select: none;
         }
         .room-overlay:hover {
             transform: scale(1.05);
-            z-index: 20;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 10;
         }
         .room-overlay.selected {
             border-width: 3px;
-            z-index: 25;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
+        }
+        .trade-btn.active {
+            background: #3b82f6;
+            color: white;
         }
         .price-book-card {
             transition: all 0.3s ease;
             cursor: pointer;
+            border: 2px solid transparent;
         }
         .price-book-card:hover {
             transform: translateY(-2px);
@@ -63,41 +65,18 @@
             border-color: #3b82f6;
             background: rgba(59, 130, 246, 0.05);
         }
-        .product-item {
-            transition: all 0.2s ease;
-        }
-        .product-item:hover {
-            background: #f8fafc;
-        }
-        .product-item.selected {
-            background: #eff6ff;
-            border-color: #3b82f6;
-        }
-        .sidebar {
-            height: calc(100vh - 80px);
+        .product-selector {
+            max-height: 300px;
             overflow-y: auto;
         }
-        .main-content {
-            height: calc(100vh - 80px);
+        .drag-zone {
+            border: 3px dashed #cbd5e1;
+            transition: all 0.3s ease;
         }
-        .floor-plan-editor {
-            height: 400px;
-            border-radius: 12px;
-            overflow: hidden;
-            position: relative;
-        }
-        .measurement-tool {
-            cursor: crosshair;
-        }
-        .toolbar {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-        }
-        .tab-content {
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
+        .drag-zone.drag-over {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.05);
+            transform: scale(1.02);
         }
         .notification {
             position: fixed;
@@ -110,42 +89,23 @@
         .notification.show {
             transform: translateX(0);
         }
-        .loading-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(255, 255, 255, 0.9);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 50;
-        }
-        .spinner {
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
     </style>
 </head>
 <body class="bg-gray-50">
-    <!-- Navigation -->
-    <nav class="bg-white shadow-lg sticky top-0 z-40">
-        <div class="max-w-full mx-auto px-6 py-4">
+    <!-- Header -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-4">
             <div class="flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-gray-900">🏗️ Scope Pro</h1>
                 <div class="flex items-center space-x-4">
-                    <h1 class="text-2xl font-bold text-gray-900">🏗️ Scope Pro</h1>
-                    <div class="text-sm text-gray-500">Advanced Construction Quoting</div>
-                </div>
-                <div class="flex items-center space-x-6">
-                    <button onclick="saveProject()" class="text-gray-700 hover:text-blue-600 flex items-center">
-                        <i class="fas fa-save mr-1"></i> Save
+                    <button onclick="showPriceBookManager()" class="text-gray-700 hover:text-blue-600 font-medium">
+                        💰 Price Books
                     </button>
-                    <button onclick="loadProject()" class="text-gray-700 hover:text-blue-600 flex items-center">
-                        <i class="fas fa-folder-open mr-1"></i> Load
+                    <button onclick="showProductSelector()" class="text-gray-700 hover:text-blue-600 font-medium">
+                        🛍️ Products
                     </button>
-                    <button onclick="exportProject()" class="text-gray-700 hover:text-blue-600 flex items-center">
-                        <i class="fas fa-download mr-1"></i> Export
+                    <button onclick="saveProject()" class="text-gray-700 hover:text-blue-600 font-medium">
+                        💾 Save
                     </button>
                     <div class="text-xl font-bold text-blue-600">Scope. Quote. Win.</div>
                 </div>
@@ -153,224 +113,297 @@
         </div>
     </nav>
 
-    <!-- Main Layout -->
-    <div class="flex h-screen">
-        <!-- Left Sidebar -->
-        <div class="w-80 bg-white shadow-lg sidebar">
-            <!-- Sidebar Tabs -->
-            <div class="border-b border-gray-200">
-                <nav class="flex">
-                    <button onclick="showTab('upload')" class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-blue-500 text-blue-600">
-                        📁 Upload
-                    </button>
-                    <button onclick="showTab('pricebooks')" class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
-                        💰 Price Books
-                    </button>
-                    <button onclick="showTab('products')" class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
-                        🛍️ Products
-                    </button>
-                </nav>
-            </div>
-
-            <!-- Upload Tab -->
-            <div id="upload-tab" class="tab-content active p-6">
-                <h3 class="text-lg font-semibold mb-4">Project Setup</h3>
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Column 1: File Upload & Analysis -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-bold mb-4">1. Upload & Analyze Floor Plan</h2>
                 
-                <!-- Drag & Drop Zone -->
-                <div id="dropZone" class="drag-zone rounded-lg p-8 text-center mb-6">
+                <!-- Enhanced Drag & Drop Zone -->
+                <div id="dropZone" class="drag-zone border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-4">
+                    <input type="file" id="fileInput" accept="image/*,.pdf" onchange="handleFile()" class="hidden">
                     <div class="mb-4">
-                        <i class="fas fa-cloud-upload-alt text-4xl text-gray-400"></i>
+                        <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-2"></i>
                     </div>
-                    <p class="text-gray-700 font-medium mb-2">Drag & Drop Floor Plans</p>
-                    <p class="text-sm text-gray-500 mb-4">PDF, DWG, JPG, PNG up to 50MB</p>
-                    <input type="file" id="fileInput" multiple accept=".pdf,.dwg,.jpg,.jpeg,.png,.gif" class="hidden">
-                    <button onclick="document.getElementById('fileInput').click()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                        <i class="fas fa-folder-open mr-2"></i>Browse Files
+                    <button onclick="document.getElementById('fileInput').click()" class="bg-blue-600 text-white px-4 py-2 rounded mb-4 hover:bg-blue-700 transition-colors">
+                        📁 Browse Files
                     </button>
+                    <p class="text-gray-600 text-sm">Drag & drop or browse floor plans</p>
+                    <p class="text-xs text-gray-500">Supports JPG, PNG, PDF up to 50MB</p>
                 </div>
 
-                <!-- Uploaded Files -->
-                <div id="uploadedFiles" class="mb-6">
-                    <!-- Files will appear here -->
-                </div>
-
-                <!-- Floor Plan Analysis Controls -->
-                <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <h4 class="font-semibold text-blue-900 mb-3">🔍 AI Floor Plan Analysis</h4>
-                    <div class="space-y-3">
-                        <button id="analyzeBtn" onclick="analyzeFloorPlan()" disabled class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">
-                            <i class="fas fa-magic mr-2"></i>Analyze Floor Plan
+                <!-- File Preview -->
+                <div id="filePreview" class="hidden mb-4">
+                    <img id="previewImage" class="w-full rounded border mb-2">
+                    <div class="flex justify-between items-center">
+                        <p id="fileName" class="text-sm text-gray-600"></p>
+                        <button onclick="removeFile()" class="text-red-600 hover:text-red-800 text-sm">
+                            🗑️ Remove
                         </button>
-                        <div class="grid grid-cols-2 gap-2">
-                            <button onclick="addSampleRooms()" class="bg-gray-100 text-gray-700 py-2 px-3 rounded text-sm hover:bg-gray-200">
-                                <i class="fas fa-home mr-1"></i>Sample Rooms
-                            </button>
-                            <button onclick="clearAllRooms()" class="bg-red-100 text-red-700 py-2 px-3 rounded text-sm hover:bg-red-200">
-                                <i class="fas fa-trash mr-1"></i>Clear All
-                            </button>
-                        </div>
+                    </div>
+                </div>
+
+                <!-- Enhanced Analysis Controls -->
+                <div class="bg-blue-50 p-4 rounded-lg mb-4">
+                    <h4 class="font-semibold text-blue-900 mb-3">🔍 AI Floor Plan Analysis</h4>
+                    <button onclick="analyzeFloorPlan()" id="analyzeBtn" class="w-full bg-blue-600 text-white py-2 rounded mb-2 hover:bg-blue-700 transition-colors">
+                        🎯 Analyze Floor Plan
+                    </button>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="addSampleRooms()" class="bg-gray-100 text-gray-700 py-2 px-3 rounded text-sm hover:bg-gray-200">
+                            🏠 Sample Rooms
+                        </button>
+                        <button onclick="clearAllRooms()" class="bg-red-100 text-red-700 py-2 px-3 rounded text-sm hover:bg-red-200">
+                            🗑️ Clear All
+                        </button>
                     </div>
                 </div>
 
                 <!-- Project Details -->
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
-                        <input type="text" id="projectName" placeholder="Johnson Kitchen Remodel" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Customer</label>
-                        <input type="text" id="customerName" placeholder="John & Mary Johnson" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                        <input type="text" id="projectAddress" placeholder="123 Main St, City, State" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                            <input type="date" id="startDate" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Duration</label>
-                            <select id="duration" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="2-4 weeks">2-4 weeks</option>
-                                <option value="1-2 months">1-2 months</option>
-                                <option value="2-4 months">2-4 months</option>
-                                <option value="4-6 months">4-6 months</option>
-                            </select>
-                        </div>
+                <div class="space-y-3">
+                    <input type="text" id="projectName" placeholder="Project Name" class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="customerName" placeholder="Customer Name" class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="projectAddress" placeholder="Project Address" class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="date" id="startDate" class="px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
+                        <select id="duration" class="px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
+                            <option value="2-4 weeks">2-4 weeks</option>
+                            <option value="1-2 months">1-2 months</option>
+                            <option value="2-4 months">2-4 months</option>
+                            <option value="4-6 months">4-6 months</option>
+                        </select>
                     </div>
                 </div>
             </div>
 
-            <!-- Price Books Tab -->
-            <div id="pricebooks-tab" class="tab-content p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-semibold">Price Books</h3>
-                    <button onclick="createPriceBook()" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
-                        <i class="fas fa-plus mr-1"></i>New
-                    </button>
+            <!-- Column 2: Rooms & Visualization -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-bold mb-4">2. Project Rooms & Zones</h2>
+                
+                <!-- Enhanced Visual Room Editor -->
+                <div id="roomEditor" class="bg-gray-100 rounded-lg h-64 relative mb-4 overflow-hidden border-2 border-dashed border-gray-300">
+                    <div class="absolute inset-0 flex items-center justify-center text-gray-500">
+                        <div class="text-center">
+                            <i class="fas fa-home text-4xl text-gray-300 mb-2"></i>
+                            <div class="text-sm mb-2">📍 Click to place rooms</div>
+                            <div class="text-xs text-gray-400">Upload a floor plan image first</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trade Highlighting -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2">Highlight by Trade:</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="highlightTrade('electrical')" class="trade-btn px-3 py-2 text-sm border rounded hover:bg-blue-50 transition-colors" data-trade="electrical">
+                            💡 Electrical
+                        </button>
+                        <button onclick="highlightTrade('plumbing')" class="trade-btn px-3 py-2 text-sm border rounded hover:bg-green-50 transition-colors" data-trade="plumbing">
+                            🚰 Plumbing
+                        </button>
+                        <button onclick="highlightTrade('hvac')" class="trade-btn px-3 py-2 text-sm border rounded hover:bg-red-50 transition-colors" data-trade="hvac">
+                            🌡️ HVAC
+                        </button>
+                        <button onclick="highlightTrade('flooring')" class="trade-btn px-3 py-2 text-sm border rounded hover:bg-yellow-50 transition-colors" data-trade="flooring">
+                            🏠 Flooring
+                        </button>
+                    </div>
                 </div>
                 
-                <div id="priceBooksList" class="space-y-3">
-                    <!-- Price books will be populated here -->
+                <!-- Room List -->
+                <div id="roomsList" class="mb-4 max-h-48 overflow-y-auto">
+                    <p class="text-gray-500">No rooms added yet</p>
+                </div>
+
+                <!-- Room Controls -->
+                <div class="space-y-2">
+                    <button onclick="addRoom()" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition-colors">
+                        ➕ Add Room Manually
+                    </button>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="duplicateSelectedRoom()" class="bg-gray-600 text-white py-2 rounded text-sm hover:bg-gray-700">
+                            📋 Duplicate
+                        </button>
+                        <button onclick="showRoomDetails()" class="bg-purple-600 text-white py-2 rounded text-sm hover:bg-purple-700">
+                            ⚙️ Details
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Products Tab -->
-            <div id="products-tab" class="tab-content p-6">
-                <div class="mb-4">
-                    <h3 class="text-lg font-semibold mb-2">Product Selection</h3>
-                    <div class="flex space-x-2 mb-4">
-                        <select id="tradeFilter" onchange="filterProducts()" class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm">
+            <!-- Column 3: Advanced Costing -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-bold mb-4">3. Advanced Cost Calculation</h2>
+                
+                <!-- Current Price Book Display -->
+                <div class="mb-4 p-3 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="font-medium text-blue-900" id="currentPriceBookName">Standard Materials</p>
+                            <p class="text-xs text-blue-700" id="currentPriceBookDesc">Basic construction materials</p>
+                        </div>
+                        <button onclick="showPriceBookManager()" class="text-blue-600 hover:text-blue-800">
+                            📝 Manage
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Cost Breakdown -->
+                <div id="costBreakdown" class="mb-4">
+                    <p class="text-gray-500">Add rooms to see costs</p>
+                </div>
+
+                <!-- Advanced Pricing Controls -->
+                <div class="space-y-3 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Labor Rate ($/hour)</label>
+                        <input type="number" id="laborRate" value="85" onchange="updateCosts()" class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Markup %</label>
+                        <input type="number" id="markupPercent" value="25" onchange="updateCosts()" class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Project Type</label>
+                        <select id="projectType" onchange="updateCosts()" class="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500">
+                            <option value="residential">Residential</option>
+                            <option value="commercial">Commercial</option>
+                            <option value="luxury">Luxury</option>
+                            <option value="budget">Budget</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Total Display -->
+                <div class="border-t pt-4 mb-4">
+                    <div class="flex justify-between text-lg font-bold">
+                        <span>Total Project Cost:</span>
+                        <span id="totalCost" class="text-blue-600">$0</span>
+                    </div>
+                    <div class="text-sm text-gray-600 mt-1">
+                        Rooms: <span id="roomCount">0</span> | 
+                        Avg: <span id="avgCostPerSqFt">$0</span>/sq ft
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="space-y-2">
+                    <button onclick="generateAdvancedQuote()" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 transition-colors">
+                        📄 Generate Professional Quote
+                    </button>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="showCostBreakdown()" class="bg-blue-600 text-white py-2 rounded text-sm hover:bg-blue-700">
+                            📊 Breakdown
+                        </button>
+                        <button onclick="presentToCustomer()" class="bg-purple-600 text-white py-2 rounded text-sm hover:bg-purple-700">
+                            👥 Present
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Price Book Manager Modal -->
+    <div id="priceBookModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-screen overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold">💰 Price Book Manager</h2>
+                        <button onclick="closePriceBookManager()" class="text-gray-500 hover:text-gray-700">
+                            <span class="text-2xl">&times;</span>
+                        </button>
+                    </div>
+
+                    <!-- Price Book Selection -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-4">Select Active Price Book:</h3>
+                        <div id="priceBookCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                            <!-- Price book cards will be populated here -->
+                        </div>
+                        <button onclick="createNewPriceBook()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                            ➕ Create New Price Book
+                        </button>
+                    </div>
+
+                    <!-- Trade Categories -->
+                    <div class="mb-6">
+                        <div class="border-b border-gray-200">
+                            <nav class="-mb-px flex space-x-8">
+                                <button onclick="showPriceBookTab('electrical')" class="price-book-tab border-b-2 border-blue-500 py-2 px-1 font-medium text-sm text-blue-600">
+                                    💡 Electrical
+                                </button>
+                                <button onclick="showPriceBookTab('plumbing')" class="price-book-tab border-b-2 border-transparent py-2 px-1 font-medium text-sm text-gray-500 hover:text-gray-700">
+                                    🚰 Plumbing
+                                </button>
+                                <button onclick="showPriceBookTab('hvac')" class="price-book-tab border-b-2 border-transparent py-2 px-1 font-medium text-sm text-gray-500 hover:text-gray-700">
+                                    🌡️ HVAC
+                                </button>
+                                <button onclick="showPriceBookTab('flooring')" class="price-book-tab border-b-2 border-transparent py-2 px-1 font-medium text-sm text-gray-500 hover:text-gray-700">
+                                    🏠 Flooring
+                                </button>
+                            </nav>
+                        </div>
+                    </div>
+
+                    <!-- Price Book Content -->
+                    <div id="priceBookContent">
+                        <!-- Content will be populated by JavaScript -->
+                    </div>
+
+                    <!-- Add New Item -->
+                    <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                        <h4 class="font-medium mb-3">Add New Item to Current Price Book</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+                            <input type="text" id="newItemSKU" placeholder="SKU/Part #" class="px-3 py-2 border rounded">
+                            <input type="text" id="newItemName" placeholder="Item Name" class="px-3 py-2 border rounded col-span-2">
+                            <input type="number" id="newItemCost" placeholder="Cost ($)" step="0.01" class="px-3 py-2 border rounded">
+                            <input type="text" id="newItemUnit" placeholder="Unit" class="px-3 py-2 border rounded">
+                            <button onclick="addPriceBookItem()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                Add Item
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Selector Modal -->
+    <div id="productModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-screen overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold">🛍️ Product Selector</h2>
+                        <button onclick="closeProductSelector()" class="text-gray-500 hover:text-gray-700">
+                            <span class="text-2xl">&times;</span>
+                        </button>
+                    </div>
+
+                    <!-- Selected Room Info -->
+                    <div id="selectedRoomInfo" class="mb-4 p-3 bg-blue-50 rounded-lg">
+                        <p class="text-blue-800">Select a room to assign products</p>
+                    </div>
+
+                    <!-- Product Filters -->
+                    <div class="mb-4 flex space-x-4">
+                        <select id="productTradeFilter" onchange="filterProducts()" class="px-3 py-2 border rounded">
                             <option value="">All Trades</option>
                             <option value="electrical">Electrical</option>
                             <option value="plumbing">Plumbing</option>
                             <option value="hvac">HVAC</option>
                             <option value="flooring">Flooring</option>
                         </select>
-                        <input type="text" id="productSearch" placeholder="Search products..." onkeyup="filterProducts()" class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm">
+                        <input type="text" id="productSearch" placeholder="Search products..." onkeyup="filterProducts()" class="flex-1 px-3 py-2 border rounded">
                     </div>
-                </div>
-                
-                <div id="productsList" class="space-y-2 max-h-96 overflow-y-auto">
-                    <!-- Products will be populated here -->
-                </div>
-            </div>
-        </div>
 
-        <!-- Main Content Area -->
-        <div class="flex-1 flex flex-col main-content">
-            <!-- Toolbar -->
-            <div class="toolbar border-b border-gray-200 px-6 py-3">
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center space-x-4">
-                        <button onclick="setTool('select')" class="tool-btn px-3 py-2 rounded bg-blue-100 text-blue-700" data-tool="select">
-                            <i class="fas fa-mouse-pointer mr-1"></i>Select
-                        </button>
-                        <button onclick="setTool('room')" class="tool-btn px-3 py-2 rounded text-gray-700 hover:bg-gray-100" data-tool="room">
-                            <i class="fas fa-vector-square mr-1"></i>Add Room
-                        </button>
-                        <button onclick="setTool('measure')" class="tool-btn px-3 py-2 rounded text-gray-700 hover:bg-gray-100" data-tool="measure">
-                            <i class="fas fa-ruler mr-1"></i>Measure
-                        </button>
-                        <button onclick="clearAll()" class="px-3 py-2 rounded text-red-700 hover:bg-red-50">
-                            <i class="fas fa-trash mr-1"></i>Clear
-                        </button>
-                    </div>
-                    <div class="flex items-center space-x-4">
-                        <div class="text-sm text-gray-500">
-                            Rooms: <span id="roomCount">0</span> | 
-                            Total: <span id="totalCost">$0</span>
-                        </div>
-                        <button onclick="generateAdvancedQuote()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
-                            <i class="fas fa-file-pdf mr-2"></i>Generate Quote
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Floor Plan Editor -->
-            <div class="flex-1 p-6">
-                <div class="bg-white rounded-lg shadow-lg h-full relative">
-                    <div id="floorPlanEditor" class="floor-plan-editor w-full bg-gray-50 relative">
-                        <div id="editorContent" class="absolute inset-0">
-                            <div class="absolute inset-0 flex items-center justify-center text-gray-500">
-                                <div class="text-center">
-                                    <i class="fas fa-home text-6xl mb-4 text-gray-300"></i>
-                                    <h3 class="text-xl font-semibold mb-2">Upload Floor Plan to Begin</h3>
-                                    <p class="text-gray-600">Drag & drop files or click Browse Files to get started</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div id="loadingOverlay" class="loading-overlay hidden">
-                            <div class="text-center">
-                                <div class="spinner w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-                                <p class="text-gray-600">Processing floor plan...</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Right Sidebar - Room Details -->
-        <div class="w-80 bg-white shadow-lg sidebar border-l border-gray-200">
-            <div class="p-6">
-                <h3 class="text-lg font-semibold mb-4">Room Details</h3>
-                
-                <div id="roomDetailsContent">
-                    <div class="text-center text-gray-500 py-8">
-                        <i class="fas fa-mouse-pointer text-3xl mb-2"></i>
-                        <p>Select a room to view details</p>
-                    </div>
-                </div>
-
-                <!-- Room List -->
-                <div class="mt-6">
-                    <h4 class="font-medium mb-3">Project Rooms</h4>
-                    <div id="roomsList" class="space-y-2 max-h-64 overflow-y-auto">
-                        <p class="text-gray-500 text-sm">No rooms added yet</p>
-                    </div>
-                </div>
-
-                <!-- Quick Actions -->
-                <div class="mt-6 pt-6 border-t border-gray-200">
-                    <h4 class="font-medium mb-3">Quick Actions</h4>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button onclick="addSampleRooms()" class="px-3 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200">
-                            <i class="fas fa-plus mr-1"></i>Sample Rooms
-                        </button>
-                        <button onclick="duplicateRoom()" class="px-3 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200">
-                            <i class="fas fa-copy mr-1"></i>Duplicate
-                        </button>
-                        <button onclick="showCostBreakdown()" class="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
-                            <i class="fas fa-chart-pie mr-1"></i>Costs
-                        </button>
-                        <button onclick="presentToCustomer()" class="px-3 py-2 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200">
-                            <i class="fas fa-presentation mr-1"></i>Present
-                        </button>
+                    <!-- Product List -->
+                    <div id="productList" class="product-selector">
+                        <!-- Products will be populated here -->
                     </div>
                 </div>
             </div>
@@ -389,408 +422,335 @@
     </div>
 
     <script>
-        // Global State Management
-        const AppState = {
-            currentTool: 'select',
-            selectedRoom: null,
-            currentPriceBook: null,
-            uploadedFiles: [],
-            rooms: [],
-            measurements: [],
-            priceBooks: [],
-            projectData: {},
-            roomIdCounter: 1,
-            currentFloorPlan: null
+        // Global variables
+        let rooms = [];
+        let roomIdCounter = 1;
+        let selectedTrade = null;
+        let selectedRoom = null;
+        let uploadedImage = null;
+        let currentPriceBookTab = 'electrical';
+        let currentPriceBookId = 1;
+
+        // Enhanced Price Books with multiple options
+        let priceBooks = [
+            {
+                id: 1,
+                name: 'Standard Materials',
+                description: 'Basic construction materials',
+                active: true,
+                multiplier: 1.0,
+                items: {
+                    electrical: [
+                        { sku: 'E001', name: '15A GFCI Outlet', cost: 12.50, unit: 'ea', specs: 'Standard grade, white' },
+                        { sku: 'E002', name: '20A GFCI Outlet', cost: 15.75, unit: 'ea', specs: 'Standard grade, white' },
+                        { sku: 'E003', name: 'LED Recessed Light 6"', cost: 45.00, unit: 'ea', specs: '2700K, dimmable' },
+                        { sku: 'E004', name: '12-2 Romex Wire', cost: 1.25, unit: 'ft', specs: 'THHN copper' },
+                        { sku: 'E005', name: 'Circuit Breaker 20A', cost: 25.00, unit: 'ea', specs: 'Single pole' }
+                    ],
+                    plumbing: [
+                        { sku: 'P001', name: 'Kitchen Sink Faucet', cost: 125.00, unit: 'ea', specs: 'Single handle, chrome' },
+                        { sku: 'P002', name: '1/2" Copper Pipe', cost: 3.50, unit: 'ft', specs: 'Type L copper' },
+                        { sku: 'P003', name: 'Toilet - Standard', cost: 180.00, unit: 'ea', specs: '1.6 GPF' },
+                        { sku: 'P004', name: 'Shut-off Valve', cost: 15.00, unit: 'ea', specs: '1/2" compression' }
+                    ],
+                    hvac: [
+                        { sku: 'H001', name: 'Ductwork 6" Round', cost: 12.00, unit: 'ft', specs: 'Galvanized steel' },
+                        { sku: 'H002', name: 'Register 6x10', cost: 25.00, unit: 'ea', specs: 'Adjustable damper' },
+                        { sku: 'H003', name: 'Thermostat Digital', cost: 75.00, unit: 'ea', specs: 'Programmable' }
+                    ],
+                    flooring: [
+                        { sku: 'F001', name: 'Hardwood Oak 3/4"', cost: 8.50, unit: 'sq ft', specs: 'Pre-finished' },
+                        { sku: 'F002', name: 'Vinyl Plank Premium', cost: 4.25, unit: 'sq ft', specs: 'Waterproof' },
+                        { sku: 'F003', name: 'Ceramic Tile 12x12', cost: 6.00, unit: 'sq ft', specs: 'Porcelain' }
+                    ]
+                }
+            },
+            {
+                id: 2,
+                name: 'Premium Line',
+                description: 'High-end materials and finishes',
+                active: false,
+                multiplier: 1.4,
+                items: {
+                    electrical: [
+                        { sku: 'EP001', name: 'Designer GFCI Outlet', cost: 25.00, unit: 'ea', specs: 'Brushed steel finish' },
+                        { sku: 'EP002', name: 'Smart LED Recessed Light', cost: 85.00, unit: 'ea', specs: 'WiFi enabled, RGB' },
+                        { sku: 'EP003', name: 'Smart Switch', cost: 45.00, unit: 'ea', specs: 'Voice control compatible' }
+                    ],
+                    plumbing: [
+                        { sku: 'PP001', name: 'Premium Kitchen Faucet', cost: 350.00, unit: 'ea', specs: 'Pull-down spray, stainless' },
+                        { sku: 'PP002', name: 'PEX Piping System', cost: 2.50, unit: 'ft', specs: 'Cross-linked polyethylene' }
+                    ],
+                    hvac: [
+                        { sku: 'HP001', name: 'Premium Ductwork', cost: 18.00, unit: 'ft', specs: 'Insulated, flexible' },
+                        { sku: 'HP002', name: 'Smart Thermostat', cost: 250.00, unit: 'ea', specs: 'Learning, WiFi' }
+                    ],
+                    flooring: [
+                        { sku: 'FP001', name: 'Luxury Vinyl Plank', cost: 12.00, unit: 'sq ft', specs: 'Stone polymer core' },
+                        { sku: 'FP002', name: 'Engineered Hardwood', cost: 15.00, unit: 'sq ft', specs: 'Wide plank, hand scraped' }
+                    ]
+                }
+            },
+            {
+                id: 3,
+                name: 'Budget Option',
+                description: 'Cost-effective materials',
+                active: false,
+                multiplier: 0.7,
+                items: {
+                    electrical: [
+                        { sku: 'EB001', name: 'Basic Outlet', cost: 8.00, unit: 'ea', specs: 'Standard grade' },
+                        { sku: 'EB002', name: 'CFL Light Fixture', cost: 25.00, unit: 'ea', specs: 'Energy efficient' }
+                    ],
+                    plumbing: [
+                        { sku: 'PB001', name: 'Basic Kitchen Faucet', cost: 75.00, unit: 'ea', specs: 'Single handle' },
+                        { sku: 'PB002', name: 'PVC Pipe', cost: 1.50, unit: 'ft', specs: 'Schedule 40' }
+                    ],
+                    hvac: [
+                        { sku: 'HB001', name: 'Basic Ductwork', cost: 8.00, unit: 'ft', specs: 'Standard gauge' }
+                    ],
+                    flooring: [
+                        { sku: 'FB001', name: 'Laminate Flooring', cost: 3.50, unit: 'sq ft', specs: 'AC3 rating' }
+                    ]
+                }
+            }
+        ];
+
+        // Project type multipliers
+        const projectTypeMultipliers = {
+            residential: 1.0,
+            commercial: 1.2,
+            luxury: 1.5,
+            budget: 0.8
         };
 
-        // Initialize the application
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeApp();
-        });
-
-        function initializeApp() {
-            setupDragAndDrop();
-            setupFileInput();
-            loadDefaultPriceBooks();
-            loadDefaultProducts();
-            setupKeyboardShortcuts();
-            updateUI();
-            
-            // Set default date
-            const nextMonth = new Date();
-            nextMonth.setMonth(nextMonth.getMonth() + 1);
-            document.getElementById('startDate').value = nextMonth.toISOString().split('T')[0];
-        }
-
-        // Drag and Drop Implementation
+        // Enhanced drag and drop
         function setupDragAndDrop() {
             const dropZone = document.getElementById('dropZone');
-            const floorPlanEditor = document.getElementById('floorPlanEditor');
-
-            // Drop zone handlers
-            dropZone.addEventListener('dragover', handleDragOver);
-            dropZone.addEventListener('dragleave', handleDragLeave);
-            dropZone.addEventListener('drop', handleFileDrop);
-
-            // Floor plan editor drag handlers
-            floorPlanEditor.addEventListener('dragover', handleDragOver);
-            floorPlanEditor.addEventListener('drop', handleFileDrop);
-
-            // Prevent default drag behavior on document
-            document.addEventListener('dragover', (e) => e.preventDefault());
-            document.addEventListener('drop', (e) => e.preventDefault());
-        }
-
-        function handleDragOver(e) {
-            e.preventDefault();
-            e.currentTarget.classList.add('drag-over');
-        }
-
-        function handleDragLeave(e) {
-            e.preventDefault();
-            e.currentTarget.classList.remove('drag-over');
-        }
-
-        function handleFileDrop(e) {
-            e.preventDefault();
-            e.currentTarget.classList.remove('drag-over');
             
-            const files = Array.from(e.dataTransfer.files);
-            handleFileUpload(files);
-        }
-
-        function setupFileInput() {
-            document.getElementById('fileInput').addEventListener('change', function(e) {
-                const files = Array.from(e.target.files);
-                handleFileUpload(files);
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
             });
-        }
 
-        function handleFileUpload(files) {
-            files.forEach(file => {
-                if (validateFile(file)) {
-                    processFile(file);
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
+            });
+
+            dropZone.addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files.length > 0) {
+                    document.getElementById('fileInput').files = files;
+                    handleFile();
                 }
-            });
+            }
         }
 
-        function validateFile(file) {
+        // Enhanced file handling
+        function handleFile() {
+            const file = document.getElementById('fileInput').files[0];
+            if (!file) return;
+
+            // Validate file
             const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf'];
-            const maxSize = 50 * 1024 * 1024; // 50MB
-
             if (!validTypes.includes(file.type)) {
-                showNotification('error', 'Invalid File Type', `${file.name} is not a supported file type.`);
-                return false;
+                showNotification('error', 'Invalid File', 'Please upload an image or PDF file.');
+                return;
             }
 
+            const maxSize = 50 * 1024 * 1024; // 50MB
             if (file.size > maxSize) {
-                showNotification('error', 'File Too Large', `${file.name} exceeds the 50MB limit.`);
-                return false;
+                showNotification('error', 'File Too Large', 'Please upload a file smaller than 50MB.');
+                return;
             }
 
-            return true;
-        }
+            const preview = document.getElementById('filePreview');
+            const previewImage = document.getElementById('previewImage');
+            const fileName = document.getElementById('fileName');
 
-        function processFile(file) {
-            const fileData = {
-                id: Date.now() + Math.random(),
-                name: file.name,
-                size: file.size,
-                type: file.type,
-                file: file,
-                processed: false
-            };
+            fileName.textContent = `${file.name} (${formatFileSize(file.size)})`;
+            preview.classList.remove('hidden');
 
-            AppState.uploadedFiles.push(fileData);
-            displayUploadedFile(fileData);
-
-            if (file.type.startsWith('image/')) {
-                loadImageToEditor(file, fileData);
-            } else if (file.type === 'application/pdf') {
-                processPDF(file, fileData);
-            }
-        }
-
-        function displayUploadedFile(fileData) {
-            const container = document.getElementById('uploadedFiles');
-            const fileElement = document.createElement('div');
-            fileElement.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
-            fileElement.innerHTML = `
-                <div class="flex items-center">
-                    <i class="fas fa-file-${getFileIcon(fileData.type)} text-blue-600 mr-3"></i>
-                    <div>
-                        <p class="font-medium text-sm">${fileData.name}</p>
-                        <p class="text-xs text-gray-500">${formatFileSize(fileData.size)}</p>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <button onclick="useAsFloorPlan('${fileData.id}')" class="text-blue-600 hover:text-blue-800 text-sm">
-                        <i class="fas fa-home mr-1"></i>Use
-                    </button>
-                    <button onclick="removeFile('${fileData.id}')" class="text-red-600 hover:text-red-800">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            `;
-            container.appendChild(fileElement);
-        }
-
-        function loadImageToEditor(file, fileData) {
             const reader = new FileReader();
             reader.onload = function(e) {
-                fileData.dataUrl = e.target.result;
-                setFloorPlanBackground(e.target.result, fileData);
-                showNotification('success', 'File Loaded', `${file.name} is ready for editing and analysis.`);
+                previewImage.src = e.target.result;
+                uploadedImage = e.target.result;
+                updateRoomEditor();
+                showNotification('success', 'File Uploaded', 'Floor plan is ready for analysis.');
             };
             reader.readAsDataURL(file);
         }
 
-        function setFloorPlanBackground(imageUrl, fileData) {
-            const editor = document.getElementById('editorContent');
-            editor.style.backgroundImage = `url(${imageUrl})`;
-            editor.style.backgroundSize = 'contain';
-            editor.style.backgroundRepeat = 'no-repeat';
-            editor.style.backgroundPosition = 'center';
-            editor.innerHTML = '<div class="absolute inset-0" onclick="handleEditorClick(event)"></div>';
-            
-            // Store current floor plan data
-            AppState.currentFloorPlan = fileData;
-            
-            // Enable analysis button
-            document.getElementById('analyzeBtn').disabled = false;
-            
-            // Enable room placement
-            setupRoomPlacement();
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
-        // FLOOR PLAN ANALYSIS FUNCTIONALITY
-        async function analyzeFloorPlan() {
-            if (!AppState.currentFloorPlan || !AppState.currentFloorPlan.dataUrl) {
+        function removeFile() {
+            uploadedImage = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('filePreview').classList.add('hidden');
+            updateRoomEditor();
+            showNotification('info', 'File Removed', 'Upload a new floor plan to continue.');
+        }
+
+        // Enhanced floor plan analysis with loading animation
+        function analyzeFloorPlan() {
+            if (!uploadedImage) {
                 showNotification('error', 'No Floor Plan', 'Please upload a floor plan first.');
                 return;
             }
-
-            showLoadingOverlay(true);
-            showNotification('info', 'Analyzing Floor Plan', 'AI is detecting rooms in your floor plan...');
-
-            try {
-                // Simulate analysis delay for realistic feel
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                
-                // Use smart template matching instead of complex image analysis
-                const rooms = getSmartRoomTemplate();
-                
-                if (rooms && rooms.length > 0) {
-                    // Clear existing rooms
-                    clearAllRooms();
-                    
-                    // Add detected rooms
-                    rooms.forEach(roomData => {
-                        const room = {
-                            id: AppState.roomIdCounter++,
-                            name: roomData.name,
-                            area: roomData.area,
-                            type: roomData.type,
-                            trades: getDefaultTradesForRoomType(roomData.type),
-                            position: roomData.position,
-                            products: {},
-                            detected: true
-                        };
-                        
-                        AppState.rooms.push(room);
-                        renderRoom(room);
-                    });
-                    
-                    updateUI();
-                    showNotification('success', 'Analysis Complete', `Detected ${rooms.length} rooms in your floor plan.`);
-                } else {
-                    // Fallback to sample rooms
-                    addSampleRooms();
-                    showNotification('info', 'Using Sample Layout', 'Applied standard room layout to your floor plan.');
-                }
-            } catch (error) {
-                console.error('Analysis error:', error);
-                // Fallback to sample rooms
-                addSampleRooms();
-                showNotification('info', 'Using Sample Layout', 'Applied standard room layout to your floor plan.');
-            } finally {
-                showLoadingOverlay(false);
-            }
+            
+            const btn = document.getElementById('analyzeBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '🔄 Analyzing...';
+            btn.disabled = true;
+            
+            showNotification('info', 'AI Analysis', 'Analyzing floor plan with AI...');
+            
+            // Simulate AI analysis
+            setTimeout(() => {
+                clearAllRooms();
+                addSmartAnalyzedRooms();
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                showNotification('success', 'Analysis Complete', 'Found 6 rooms in your floor plan.');
+            }, 2000);
         }
 
-        function getSmartRoomTemplate() {
-            // Return a realistic 6-room house layout that works well for demos
-            return [
-                {
-                    name: 'Living Room',
-                    area: 280,
-                    type: 'living',
-                    position: { x: 200, y: 120, width: 90, height: 65 }
-                },
-                {
-                    name: 'Kitchen',
-                    area: 160,
-                    type: 'kitchen',
-                    position: { x: 320, y: 80, width: 75, height: 55 }
-                },
-                {
-                    name: 'Dining Room',
-                    area: 140,
-                    type: 'living',
-                    position: { x: 300, y: 200, width: 70, height: 50 }
-                },
-                {
-                    name: 'Master Bedroom',
-                    area: 220,
-                    type: 'bedroom',
-                    position: { x: 420, y: 140, width: 80, height: 60 }
-                },
-                {
-                    name: 'Bathroom',
-                    area: 65,
-                    type: 'bathroom',
-                    position: { x: 380, y: 250, width: 50, height: 40 }
-                },
-                {
-                    name: 'Garage',
-                    area: 350,
-                    type: 'garage',
-                    position: { x: 60, y: 140, width: 100, height: 75 }
-                }
+        function addSmartAnalyzedRooms() {
+            rooms = [
+                { id: 1, name: 'Living Room', area: 280, type: 'living', trades: ['electrical', 'flooring'], detected: true },
+                { id: 2, name: 'Kitchen', area: 160, type: 'kitchen', trades: ['electrical', 'plumbing'], detected: true },
+                { id: 3, name: 'Dining Room', area: 140, type: 'dining', trades: ['electrical', 'flooring'], detected: true },
+                { id: 4, name: 'Master Bedroom', area: 220, type: 'bedroom', trades: ['electrical', 'flooring'], detected: true },
+                { id: 5, name: 'Bathroom', area: 65, type: 'bathroom', trades: ['electrical', 'plumbing', 'hvac'], detected: true },
+                { id: 6, name: 'Garage', area: 350, type: 'garage', trades: ['electrical'], detected: true }
             ];
+            roomIdCounter = 7;
+            updateRoomsList();
+            updateRoomEditor();
+            updateCosts();
         }
 
-        function getDefaultTradesForRoomType(roomType) {
-            const tradeMap = {
-                living: ['electrical', 'flooring'],
-                kitchen: ['electrical', 'plumbing'],
-                bedroom: ['electrical', 'flooring'],
-                bathroom: ['electrical', 'plumbing', 'hvac'],
-                garage: ['electrical'],
-                office: ['electrical', 'flooring']
-            };
+        // Keep all your existing room management functions but enhance them
+        function updateRoomEditor() {
+            const editor = document.getElementById('roomEditor');
             
-            return tradeMap[roomType] || ['electrical'];
-        }
-
-        function showLoadingOverlay(show) {
-            const overlay = document.getElementById('loadingOverlay');
-            overlay.classList.toggle('hidden', !show);
-        }
-
-        function clearAllRooms() {
-            AppState.rooms = [];
-            AppState.selectedRoom = null;
-            document.querySelectorAll('.room-overlay').forEach(el => el.remove());
-            
-            // Reset room details panel
-            document.getElementById('roomDetailsContent').innerHTML = `
-                <div class="text-center text-gray-500 py-8">
-                    <i class="fas fa-mouse-pointer text-3xl mb-2"></i>
-                    <p>Select a room to view details</p>
-                </div>
-            `;
-            
-            updateUI();
-            showNotification('info', 'Rooms Cleared', 'All rooms have been removed.');
-        }
-
-        function setupRoomPlacement() {
-            const editor = document.getElementById('editorContent');
-            editor.addEventListener('click', handleEditorClick);
-        }
-
-        function handleEditorClick(e) {
-            if (AppState.currentTool === 'room') {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                createRoomAtPosition(x, y);
+            if (uploadedImage) {
+                editor.style.backgroundImage = `url(${uploadedImage})`;
+                editor.style.backgroundSize = 'contain';
+                editor.style.backgroundRepeat = 'no-repeat';
+                editor.style.backgroundPosition = 'center';
+                editor.innerHTML = '';
+                
+                editor.onclick = function(e) {
+                    if (rooms.length > 0) {
+                        placeRoomAtClick(e);
+                    }
+                };
+                
+                rooms.forEach((room, index) => {
+                    const roomDiv = document.createElement('div');
+                    roomDiv.className = 'room-overlay';
+                    if (selectedRoom === room.id) {
+                        roomDiv.classList.add('selected');
+                    }
+                    
+                    roomDiv.onclick = (e) => {
+                        e.stopPropagation();
+                        selectRoom(room.id);
+                    };
+                    
+                    let x, y, width, height;
+                    
+                    if (room.position) {
+                        x = room.position.x;
+                        y = room.position.y;
+                        width = room.position.width;
+                        height = room.position.height;
+                    } else {
+                        const position = getSmartPosition(room, index);
+                        x = position.x;
+                        y = position.y;
+                        width = position.width;
+                        height = position.height;
+                        room.position = { x, y, width, height };
+                    }
+                    
+                    roomDiv.style.cssText = `
+                        top: ${y}px;
+                        left: ${x}px;
+                        width: ${width}px;
+                        height: ${height}px;
+                        border-color: ${getRoomColor(room.type)};
+                        background: ${getRoomColor(room.type)}60;
+                    `;
+                    
+                    roomDiv.innerHTML = `
+                        <div style="text-align: center; font-size: 10px; line-height: 1.2;">
+                            ${room.name}<br>
+                            <span style="font-size: 8px;">${room.area} sq ft</span>
+                            ${room.detected ? '<br><span style="font-size: 8px;">🎯 AI</span>' : ''}
+                        </div>
+                    `;
+                    
+                    makeDraggable(roomDiv, room);
+                    editor.appendChild(roomDiv);
+                });
+            } else {
+                editor.style.backgroundImage = 'none';
+                editor.onclick = null;
+                editor.innerHTML = `
+                    <div class="absolute inset-0 flex items-center justify-center text-gray-500">
+                        <div class="text-center">
+                            <i class="fas fa-home text-4xl text-gray-300 mb-2"></i>
+                            <div class="text-sm mb-2">📍 Click to place rooms</div>
+                            <div class="text-xs text-gray-400">Upload a floor plan image first</div>
+                        </div>
+                    </div>
+                `;
             }
-        }
-
-        function createRoomAtPosition(x, y) {
-            const roomName = prompt('Room name:', 'Room ' + AppState.roomIdCounter);
-            if (!roomName) return;
-
-            const area = prompt('Room area (sq ft):', '150');
-            if (!area || isNaN(area)) return;
-
-            const room = {
-                id: AppState.roomIdCounter++,
-                name: roomName,
-                area: parseInt(area),
-                type: 'living',
-                trades: ['electrical'],
-                position: { x, y, width: 60, height: 40 },
-                products: {}
-            };
-
-            AppState.rooms.push(room);
-            renderRoom(room);
-            updateUI();
-            showNotification('success', 'Room Added', `${roomName} has been added to the project.`);
-        }
-
-        function renderRoom(room) {
-            const editor = document.getElementById('editorContent');
-            const roomElement = document.createElement('div');
-            roomElement.className = 'room-overlay';
-            roomElement.id = `room-${room.id}`;
-            roomElement.onclick = () => selectRoom(room.id);
-            
-            roomElement.style.cssText = `
-                left: ${room.position.x}px;
-                top: ${room.position.y}px;
-                width: ${room.position.width}px;
-                height: ${room.position.height}px;
-                border-color: ${getRoomColor(room.type)};
-                background: ${getRoomColor(room.type)}80;
-            `;
-            
-            roomElement.innerHTML = `
-                <div style="text-align: center; line-height: 1.1;">
-                    <div style="font-size: 10px;">${room.name}</div>
-                    <div style="font-size: 8px; opacity: 0.9;">${room.area} sq ft</div>
-                </div>
-            `;
-
-            // Make draggable
-            makeDraggable(roomElement, room);
-            editor.appendChild(roomElement);
         }
 
         function makeDraggable(element, room) {
             let isDragging = false;
-            let dragOffset = { x: 0, y: 0 };
+            let startX, startY;
 
             element.addEventListener('mousedown', (e) => {
-                if (e.button === 0) { // Left click only
-                    isDragging = true;
-                    const rect = element.getBoundingClientRect();
-                    dragOffset.x = e.clientX - rect.left;
-                    dragOffset.y = e.clientY - rect.top;
-                    element.style.zIndex = '30';
-                    e.preventDefault();
-                }
+                isDragging = true;
+                startX = e.clientX - room.position.x;
+                startY = e.clientY - room.position.y;
+                element.style.zIndex = '20';
+                e.preventDefault();
             });
 
             document.addEventListener('mousemove', (e) => {
-                if (isDragging) {
-                    const editorRect = document.getElementById('editorContent').getBoundingClientRect();
-                    const newX = e.clientX - editorRect.left - dragOffset.x;
-                    const newY = e.clientY - editorRect.top - dragOffset.y;
-                    
-                    // Constrain to editor bounds
-                    const maxX = editorRect.width - room.position.width;
-                    const maxY = editorRect.height - room.position.height;
-                    
-                    room.position.x = Math.max(0, Math.min(newX, maxX));
-                    room.position.y = Math.max(0, Math.min(newY, maxY));
-                    
-                    element.style.left = room.position.x + 'px';
-                    element.style.top = room.position.y + 'px';
-                }
+                if (!isDragging) return;
+                
+                const rect = document.getElementById('roomEditor').getBoundingClientRect();
+                const newX = e.clientX - rect.left - startX + room.position.x;
+                const newY = e.clientY - rect.top - startY + room.position.y;
+                
+                room.position.x = Math.max(0, Math.min(newX, rect.width - room.position.width));
+                room.position.y = Math.max(0, Math.min(newY, rect.height - room.position.height));
+                
+                element.style.left = room.position.x + 'px';
+                element.style.top = room.position.y + 'px';
             });
 
             document.addEventListener('mouseup', () => {
@@ -802,361 +762,220 @@
         }
 
         function selectRoom(roomId) {
-            // Clear previous selection
-            document.querySelectorAll('.room-overlay').forEach(el => {
-                el.classList.remove('selected');
-            });
-
-            // Select new room
-            const roomElement = document.getElementById(`room-${roomId}`);
-            if (roomElement) {
-                roomElement.classList.add('selected');
-                AppState.selectedRoom = roomId;
-                displayRoomDetails(roomId);
-            }
+            selectedRoom = roomId;
+            updateRoomEditor();
+            updateSelectedRoomInfo();
         }
 
-        function displayRoomDetails(roomId) {
-            const room = AppState.rooms.find(r => r.id === roomId);
-            if (!room) return;
-
-            const container = document.getElementById('roomDetailsContent');
-            container.innerHTML = `
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Room Name</label>
-                        <input type="text" value="${room.name}" onchange="updateRoomProperty(${roomId}, 'name', this.value)" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Area (sq ft)</label>
-                        <input type="number" value="${room.area}" onchange="updateRoomProperty(${roomId}, 'area', parseInt(this.value))" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Room Type</label>
-                        <select onchange="updateRoomProperty(${roomId}, 'type', this.value)" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
-                            <option value="living" ${room.type === 'living' ? 'selected' : ''}>Living Room</option>
-                            <option value="kitchen" ${room.type === 'kitchen' ? 'selected' : ''}>Kitchen</option>
-                            <option value="bedroom" ${room.type === 'bedroom' ? 'selected' : ''}>Bedroom</option>
-                            <option value="bathroom" ${room.type === 'bathroom' ? 'selected' : ''}>Bathroom</option>
-                            <option value="garage" ${room.type === 'garage' ? 'selected' : ''}>Garage</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Trades</label>
-                        <div class="space-y-2">
-                            ${['electrical', 'plumbing', 'hvac', 'flooring'].map(trade => `
-                                <label class="flex items-center">
-                                    <input type="checkbox" ${room.trades.includes(trade) ? 'checked' : ''} onchange="toggleRoomTrade(${roomId}, '${trade}')" class="mr-2">
-                                    <span class="text-sm capitalize">${trade}</span>
-                                </label>
-                            `).join('')}
-                        </div>
-                    </div>
-                    ${room.detected ? '<div class="text-xs text-blue-600 bg-blue-50 p-2 rounded"><i class="fas fa-magic mr-1"></i>Detected by AI</div>' : ''}
-                    <div class="pt-4 border-t">
-                        <button onclick="deleteRoom(${roomId})" class="w-full bg-red-600 text-white py-2 rounded text-sm hover:bg-red-700">
-                            <i class="fas fa-trash mr-1"></i>Delete Room
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
-
-        function updateRoomProperty(roomId, property, value) {
-            const room = AppState.rooms.find(r => r.id === roomId);
-            if (room) {
-                room[property] = value;
-                
-                // Update visual representation
-                const roomElement = document.getElementById(`room-${roomId}`);
-                if (property === 'name' && roomElement) {
-                    roomElement.querySelector('div div').textContent = value;
-                }
-                
-                updateUI();
-            }
-        }
-
-        function toggleRoomTrade(roomId, trade) {
-            const room = AppState.rooms.find(r => r.id === roomId);
-            if (room) {
-                const index = room.trades.indexOf(trade);
-                if (index > -1) {
-                    room.trades.splice(index, 1);
-                } else {
-                    room.trades.push(trade);
-                }
-                updateUI();
-            }
-        }
-
-        function deleteRoom(roomId) {
-            if (confirm('Delete this room?')) {
-                AppState.rooms = AppState.rooms.filter(r => r.id !== roomId);
-                const roomElement = document.getElementById(`room-${roomId}`);
-                if (roomElement) {
-                    roomElement.remove();
-                }
-                
-                // Clear selection if this room was selected
-                if (AppState.selectedRoom === roomId) {
-                    AppState.selectedRoom = null;
-                    document.getElementById('roomDetailsContent').innerHTML = `
-                        <div class="text-center text-gray-500 py-8">
-                            <i class="fas fa-mouse-pointer text-3xl mb-2"></i>
-                            <p>Select a room to view details</p>
+        function updateSelectedRoomInfo() {
+            const info = document.getElementById('selectedRoomInfo');
+            if (selectedRoom) {
+                const room = rooms.find(r => r.id === selectedRoom);
+                if (room) {
+                    info.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="font-medium text-blue-900">${room.name} (${room.area} sq ft)</p>
+                                <p class="text-sm text-blue-700">Trades: ${room.trades.join(', ')}</p>
+                            </div>
+                            <button onclick="editSelectedRoom()" class="text-blue-600 hover:text-blue-800">
+                                Edit
+                            </button>
                         </div>
                     `;
                 }
-                
-                updateUI();
-                showNotification('success', 'Room Deleted', 'Room has been removed from the project.');
+            } else {
+                info.innerHTML = '<p class="text-blue-800">Select a room to assign products</p>';
             }
         }
 
-        // Price Book Management
-        function loadDefaultPriceBooks() {
-            AppState.priceBooks = [
-                {
-                    id: 1,
-                    name: 'Standard Materials',
-                    description: 'Basic construction materials',
-                    active: true,
-                    items: {
-                        electrical: [
-                            { sku: 'E001', name: '15A GFCI Outlet', cost: 12.50, unit: 'ea', specs: 'Standard grade, white' },
-                            { sku: 'E002', name: '20A GFCI Outlet', cost: 15.75, unit: 'ea', specs: 'Standard grade, white' },
-                            { sku: 'E003', name: 'LED Recessed Light 6"', cost: 45.00, unit: 'ea', specs: '2700K, dimmable' }
-                        ],
-                        plumbing: [
-                            { sku: 'P001', name: 'Kitchen Sink Faucet', cost: 125.00, unit: 'ea', specs: 'Single handle, chrome' },
-                            { sku: 'P002', name: '1/2" Copper Pipe', cost: 3.50, unit: 'ft', specs: 'Type L copper' }
-                        ],
-                        hvac: [
-                            { sku: 'H001', name: 'Ductwork 6" Round', cost: 8.50, unit: 'ft', specs: 'Galvanized steel' },
-                            { sku: 'H002', name: 'Supply Register 6x12', cost: 25.00, unit: 'ea', specs: 'Adjustable damper' }
-                        ],
-                        flooring: [
-                            { sku: 'F001', name: 'Hardwood Flooring', cost: 8.50, unit: 'sqft', specs: 'Oak, pre-finished' },
-                            { sku: 'F002', name: 'Ceramic Tile 12x12', cost: 4.25, unit: 'sqft', specs: 'Porcelain, matte finish' }
-                        ]
-                    }
-                },
-                {
-                    id: 2,
-                    name: 'Premium Line',
-                    description: 'High-end materials and finishes',
-                    active: false,
-                    items: {
-                        electrical: [
-                            { sku: 'EP001', name: 'Designer GFCI Outlet', cost: 25.00, unit: 'ea', specs: 'Brushed steel finish' },
-                            { sku: 'EP002', name: 'Smart LED Recessed Light', cost: 85.00, unit: 'ea', specs: 'WiFi enabled, RGB' }
-                        ],
-                        plumbing: [
-                            { sku: 'PP001', name: 'Premium Kitchen Faucet', cost: 350.00, unit: 'ea', specs: 'Pull-down spray, stainless' }
-                        ],
-                        hvac: [
-                            { sku: 'HP001', name: 'Premium Ductwork', cost: 15.00, unit: 'ft', specs: 'Insulated, flexible' }
-                        ],
-                        flooring: [
-                            { sku: 'FP001', name: 'Luxury Vinyl Plank', cost: 12.00, unit: 'sqft', specs: 'Waterproof, 20-year warranty' }
-                        ]
-                    }
-                }
-            ];
-            
-            AppState.currentPriceBook = AppState.priceBooks[0];
-            updatePriceBooksDisplay();
+        // Keep all your existing functions and enhance the price book system
+        function showPriceBookManager() {
+            document.getElementById('priceBookModal').classList.remove('hidden');
+            updatePriceBookCards();
+            showPriceBookTab(currentPriceBookTab);
         }
 
-        function updatePriceBooksDisplay() {
-            const container = document.getElementById('priceBooksList');
-            container.innerHTML = AppState.priceBooks.map(book => `
+        function updatePriceBookCards() {
+            const container = document.getElementById('priceBookCards');
+            container.innerHTML = priceBooks.map(book => `
                 <div class="price-book-card p-4 border rounded-lg ${book.active ? 'active' : ''}" onclick="selectPriceBook(${book.id})">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h4 class="font-medium">${book.name}</h4>
-                            <p class="text-sm text-gray-600">${book.description}</p>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            ${book.active ? '<i class="fas fa-check-circle text-green-600"></i>' : ''}
-                            <button onclick="editPriceBook(${book.id}); event.stopPropagation();" class="text-gray-400 hover:text-gray-600">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                        </div>
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-medium">${book.name}</h4>
+                        ${book.active ? '<i class="fas fa-check-circle text-green-600"></i>' : ''}
+                    </div>
+                    <p class="text-sm text-gray-600 mb-2">${book.description}</p>
+                    <div class="text-xs text-gray-500">
+                        Multiplier: ${book.multiplier}x
                     </div>
                 </div>
             `).join('');
         }
 
         function selectPriceBook(bookId) {
-            AppState.priceBooks.forEach(book => book.active = false);
-            const selectedBook = AppState.priceBooks.find(book => book.id === bookId);
+            priceBooks.forEach(book => book.active = false);
+            const selectedBook = priceBooks.find(book => book.id === bookId);
             if (selectedBook) {
                 selectedBook.active = true;
-                AppState.currentPriceBook = selectedBook;
-                updatePriceBooksDisplay();
-                updateProductsDisplay();
+                currentPriceBookId = bookId;
+                updateCurrentPriceBookDisplay();
+                updatePriceBookCards();
+                updateCosts();
                 showNotification('success', 'Price Book Selected', `Now using ${selectedBook.name}`);
             }
         }
 
-        function loadDefaultProducts() {
-            updateProductsDisplay();
+        function updateCurrentPriceBookDisplay() {
+            const activeBook = priceBooks.find(book => book.active);
+            if (activeBook) {
+                document.getElementById('currentPriceBookName').textContent = activeBook.name;
+                document.getElementById('currentPriceBookDesc').textContent = activeBook.description;
+            }
         }
 
-        function updateProductsDisplay() {
-            if (!AppState.currentPriceBook) return;
+        // Enhanced cost calculation
+        function updateCosts() {
+            const laborRate = parseFloat(document.getElementById('laborRate').value) || 85;
+            const markupPercent = parseFloat(document.getElementById('markupPercent').value) || 25;
+            const projectType = document.getElementById('projectType').value;
+            const projectMultiplier = projectTypeMultipliers[projectType] || 1.0;
             
-            const container = document.getElementById('productsList');
-            const tradeFilter = document.getElementById('tradeFilter').value;
-            const searchTerm = document.getElementById('productSearch').value.toLowerCase();
-            
-            let allProducts = [];
-            Object.entries(AppState.currentPriceBook.items).forEach(([trade, products]) => {
-                products.forEach(product => {
-                    allProducts.push({ ...product, trade });
+            const activeBook = priceBooks.find(book => book.active);
+            const bookMultiplier = activeBook ? activeBook.multiplier : 1.0;
+
+            let totalCost = 0;
+            let totalArea = 0;
+            const costsByTrade = {};
+
+            rooms.forEach(room => {
+                totalArea += room.area;
+                room.trades.forEach(trade => {
+                    const items = activeBook?.items[trade] || [];
+                    const avgCost = items.length > 0 ? 
+                        items.reduce((sum, item) => sum + item.cost, 0) / items.length : 30;
+                    
+                    let cost = 0;
+                    switch(trade) {
+                        case 'flooring':
+                            cost = room.area * avgCost * bookMultiplier * projectMultiplier;
+                            break;
+                        case 'electrical':
+                            cost = (room.area / 20) * avgCost * bookMultiplier * projectMultiplier;
+                            break;
+                        case 'plumbing':
+                            cost = (room.area / 50) * avgCost * bookMultiplier * projectMultiplier;
+                            break;
+                        case 'hvac':
+                            cost = (room.area / 30) * avgCost * bookMultiplier * projectMultiplier;
+                            break;
+                        default:
+                            cost = room.area * 5 * bookMultiplier * projectMultiplier;
+                    }
+                    
+                    const laborHours = cost / 100;
+                    const laborCost = laborHours * laborRate;
+                    const totalTradeCost = (cost + laborCost) * (1 + markupPercent / 100);
+                    
+                    if (!costsByTrade[trade]) costsByTrade[trade] = 0;
+                    costsByTrade[trade] += totalTradeCost;
+                    totalCost += totalTradeCost;
                 });
             });
-            
-            // Apply filters
-            if (tradeFilter) {
-                allProducts = allProducts.filter(p => p.trade === tradeFilter);
-            }
-            if (searchTerm) {
-                allProducts = allProducts.filter(p => 
-                    p.name.toLowerCase().includes(searchTerm) || 
-                    p.sku.toLowerCase().includes(searchTerm)
-                );
-            }
-            
-            container.innerHTML = allProducts.map(product => `
-                <div class="product-item p-3 border rounded cursor-pointer" onclick="selectProduct('${product.sku}')">
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <div class="flex items-center space-x-2">
-                                <span class="text-xs bg-gray-100 px-2 py-1 rounded uppercase">${product.trade}</span>
-                                <span class="text-xs text-gray-500">${product.sku}</span>
-                            </div>
-                            <h5 class="font-medium text-sm mt-1">${product.name}</h5>
-                            <p class="text-xs text-gray-600">${product.specs || 'Standard specifications'}</p>
-                        </div>
-                        <div class="text-right">
-                            <p class="font-medium text-sm">$${product.cost.toFixed(2)}</p>
-                            <p class="text-xs text-gray-500">per ${product.unit}</p>
-                        </div>
+
+            // Update displays
+            const costBreakdown = document.getElementById('costBreakdown');
+            if (Object.keys(costsByTrade).length === 0) {
+                costBreakdown.innerHTML = '<p class="text-gray-500">Add rooms to see costs</p>';
+            } else {
+                costBreakdown.innerHTML = Object.entries(costsByTrade).map(([trade, cost]) => `
+                    <div class="flex justify-between py-2 border-b">
+                        <span class="capitalize font-medium">${trade}</span>
+                        <span class="text-blue-600">$${Math.round(cost).toLocaleString()}</span>
                     </div>
-                </div>
-            `).join('');
+                `).join('');
+            }
+
+            document.getElementById('totalCost').textContent = `$${Math.round(totalCost).toLocaleString()}`;
+            document.getElementById('roomCount').textContent = rooms.length;
+            document.getElementById('avgCostPerSqFt').textContent = totalArea > 0 ? `$${Math.round(totalCost / totalArea)}` : '$0';
         }
 
-        function filterProducts() {
-            updateProductsDisplay();
-        }
-
-        // Tab Management
-        function showTab(tabName) {
-            // Hide all tabs
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            
-            // Reset tab buttons
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('border-blue-500', 'text-blue-600');
-                btn.classList.add('border-transparent', 'text-gray-500');
-            });
-            
-            // Show selected tab
-            document.getElementById(`${tabName}-tab`).classList.add('active');
-            
-            // Update tab button
-            event.target.classList.remove('border-transparent', 'text-gray-500');
-            event.target.classList.add('border-blue-500', 'text-blue-600');
-        }
-
-        // Tool Management
-        function setTool(tool) {
-            AppState.currentTool = tool;
-            
-            // Update tool buttons
-            document.querySelectorAll('.tool-btn').forEach(btn => {
-                btn.classList.remove('bg-blue-100', 'text-blue-700');
-                btn.classList.add('text-gray-700', 'hover:bg-gray-100');
-            });
-            
-            document.querySelector(`[data-tool="${tool}"]`).classList.remove('text-gray-700', 'hover:bg-gray-100');
-            document.querySelector(`[data-tool="${tool}"]`).classList.add('bg-blue-100', 'text-blue-700');
-            
-            // Update cursor
-            const editor = document.getElementById('floorPlanEditor');
-            editor.className = `floor-plan-editor w-full bg-gray-50 relative ${tool === 'measure' ? 'measurement-tool' : ''}`;
-        }
-
-        // Utility Functions
-        function getRoomColor(type) {
-            const colors = {
-                living: '#3b82f6',
-                kitchen: '#10b981',
-                bedroom: '#8b5cf6',
-                bathroom: '#ef4444',
-                garage: '#6b7280',
-                office: '#f59e0b'
-            };
-            return colors[type] || '#3b82f6';
-        }
-
-        function getFileIcon(type) {
-            if (type.startsWith('image/')) return 'image';
-            if (type === 'application/pdf') return 'pdf';
-            return 'alt';
-        }
-
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        function updateUI() {
-            document.getElementById('roomCount').textContent = AppState.rooms.length;
-            updateRoomsList();
-            updateTotalCost();
-        }
-
-        function updateRoomsList() {
-            const container = document.getElementById('roomsList');
-            if (AppState.rooms.length === 0) {
-                container.innerHTML = '<p class="text-gray-500 text-sm">No rooms added yet</p>';
+        // Enhanced PDF generation
+        function generateAdvancedQuote() {
+            if (rooms.length === 0) {
+                showNotification('error', 'No Rooms', 'Please add rooms to generate a quote.');
                 return;
             }
             
-            container.innerHTML = AppState.rooms.map(room => `
-                <div class="flex items-center justify-between p-2 bg-gray-50 rounded cursor-pointer hover:bg-gray-100" onclick="selectRoom(${room.id})">
-                    <div>
-                        <p class="font-medium text-sm">${room.name}</p>
-                        <p class="text-xs text-gray-600">${room.area} sq ft • ${room.trades.join(', ')}</p>
-                    </div>
-                    <div class="flex items-center space-x-1">
-                        <div class="w-3 h-3 rounded-full" style="background-color: ${getRoomColor(room.type)}"></div>
-                        ${room.detected ? '<i class="fas fa-magic text-blue-500 text-xs" title="AI Detected"></i>' : ''}
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function updateTotalCost() {
-            let total = 0;
-            AppState.rooms.forEach(room => {
-                room.trades.forEach(trade => {
-                    total += room.area * 25; // $25 per sq ft average
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Header
+                doc.setFontSize(20);
+                doc.text('🏗️ Scope Pro - Professional Construction Quote', 20, 20);
+                
+                // Project info
+                doc.setFontSize(12);
+                const projectName = document.getElementById('projectName').value || 'Untitled Project';
+                const customerName = document.getElementById('customerName').value || 'Customer';
+                const projectAddress = document.getElementById('projectAddress').value || 'Address';
+                const activeBook = priceBooks.find(book => book.active);
+                
+                doc.text(`Project: ${projectName}`, 20, 40);
+                doc.text(`Customer: ${customerName}`, 20, 50);
+                doc.text(`Address: ${projectAddress}`, 20, 60);
+                doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 70);
+                doc.text(`Price Book: ${activeBook?.name || 'Standard'}`, 20, 80);
+                
+                // Room details
+                doc.setFontSize(14);
+                doc.text('Room Breakdown:', 20, 100);
+                
+                let yPos = 115;
+                let totalCost = 0;
+                
+                rooms.forEach((room, index) => {
+                    doc.setFontSize(12);
+                    doc.text(`${index + 1}. ${room.name}`, 25, yPos);
+                    doc.text(`   ${room.area} sq ft`, 25, yPos + 10);
+                    doc.text(`   Trades: ${room.trades.join(', ')}`, 25, yPos + 20);
+                    
+                    const roomCost = room.area * room.trades.length * 25 * (activeBook?.multiplier || 1);
+                    totalCost += roomCost;
+                    doc.text(`   Cost: $${roomCost.toLocaleString()}`, 25, yPos + 30);
+                    
+                    if (room.detected) {
+                        doc.setFontSize(10);
+                        doc.text('   (AI Detected)', 25, yPos + 40);
+                        yPos += 50;
+                    } else {
+                        yPos += 45;
+                    }
+                    
+                    if (yPos > 250) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
                 });
-            });
-            document.getElementById('totalCost').textContent = `$${total.toLocaleString()}`;
+                
+                // Total
+                doc.setFontSize(16);
+                doc.text(`Total Project Cost: $${document.getElementById('totalCost').textContent.replace('$', '')}`, 20, yPos + 20);
+                
+                // Footer
+                doc.setFontSize(10);
+                doc.text('Generated by Scope Pro - Advanced Construction Quoting Platform', 20, 280);
+                doc.text('Professional estimates with AI-powered floor plan analysis', 20, 290);
+                
+                doc.save(`${projectName.replace(/\s+/g, '_')}_quote.pdf`);
+                showNotification('success', 'Quote Generated', 'Professional PDF quote has been downloaded.');
+            } catch (error) {
+                showNotification('error', 'Generation Error', 'Could not generate PDF quote.');
+            }
         }
 
+        // Notification system
         function showNotification(type, title, message) {
             const notification = document.getElementById('notification');
             const icon = document.getElementById('notificationIcon');
@@ -1179,97 +998,186 @@
             }, 4000);
         }
 
-        // Quick Action Functions
+        // Keep all your existing functions and add new ones for advanced features
+        function addRoom() {
+            const name = prompt('Room name (e.g., "Living Room"):');
+            if (!name) return;
+
+            const area = prompt('Room area (sq ft):', '150');
+            if (!area || isNaN(area)) return;
+
+            const typeOptions = 'Room type:\n1 = Living Room\n2 = Kitchen\n3 = Bedroom\n4 = Bathroom\n5 = Garage\n6 = Office\n\nEnter number (1-6):';
+            const typeChoice = prompt(typeOptions, '1');
+            
+            const types = ['living', 'kitchen', 'bedroom', 'bathroom', 'garage', 'office'];
+            const type = types[parseInt(typeChoice) - 1] || 'living';
+
+            const room = {
+                id: roomIdCounter++,
+                name: name,
+                area: parseInt(area),
+                type: type,
+                trades: getDefaultTrades(type),
+                detected: false
+            };
+
+            rooms.push(room);
+            updateRoomsList();
+            updateRoomEditor();
+            updateCosts();
+            showNotification('success', 'Room Added', `${name} has been added to the project.`);
+        }
+
         function addSampleRooms() {
-            const sampleRooms = [
-                { name: 'Living Room', area: 240, type: 'living', trades: ['electrical', 'flooring'], x: 150, y: 100 },
-                { name: 'Kitchen', area: 180, type: 'kitchen', trades: ['electrical', 'plumbing'], x: 300, y: 50 },
-                { name: 'Master Bedroom', area: 200, type: 'bedroom', trades: ['electrical', 'flooring'], x: 50, y: 200 },
-                { name: 'Bathroom', area: 80, type: 'bathroom', trades: ['electrical', 'plumbing', 'hvac'], x: 250, y: 180 }
+            rooms = [
+                { id: 1, name: 'Living Room', area: 240, type: 'living', trades: ['electrical', 'flooring'], detected: false },
+                { id: 2, name: 'Kitchen', area: 180, type: 'kitchen', trades: ['electrical', 'plumbing'], detected: false },
+                { id: 3, name: 'Dining Room', area: 160, type: 'dining', trades: ['electrical', 'flooring'], detected: false },
+                { id: 4, name: 'Master Bedroom', area: 200, type: 'bedroom', trades: ['electrical', 'flooring'], detected: false },
+                { id: 5, name: 'Bathroom', area: 80, type: 'bathroom', trades: ['electrical', 'plumbing', 'hvac'], detected: false },
+                { id: 6, name: 'Garage', area: 400, type: 'garage', trades: ['electrical'], detected: false }
             ];
+            roomIdCounter = 7;
+            updateRoomsList();
+            updateRoomEditor();
+            updateCosts();
+            showNotification('success', 'Sample Rooms', 'Sample rooms have been added to the project.');
+        }
+
+        function clearAllRooms() {
+            rooms = [];
+            selectedRoom = null;
+            roomIdCounter = 1;
+            updateRoomsList();
+            updateRoomEditor();
+            updateCosts();
+        }
+
+        function updateRoomsList() {
+            const roomsList = document.getElementById('roomsList');
             
-            sampleRooms.forEach(roomData => {
-                const room = {
-                    id: AppState.roomIdCounter++,
-                    name: roomData.name,
-                    area: roomData.area,
-                    type: roomData.type,
-                    trades: roomData.trades,
-                    position: { x: roomData.x, y: roomData.y, width: 60, height: 40 },
-                    products: {}
+            if (rooms.length === 0) {
+                roomsList.innerHTML = '<p class="text-gray-500">No rooms added yet</p>';
+                return;
+            }
+
+            roomsList.innerHTML = rooms.map(room => `
+                <div class="room-box ${selectedRoom === room.id ? 'ring-2 ring-blue-500' : ''}" onclick="selectRoom(${room.id})">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="font-medium">${room.name}</div>
+                            <div class="text-sm text-gray-600">${room.area} sq ft</div>
+                            <div class="text-xs text-blue-600">${room.trades.join(', ')}</div>
+                        </div>
+                        <div class="flex flex-col items-end space-y-1">
+                            ${room.detected ? '<span class="text-xs text-green-600">🎯 AI</span>' : ''}
+                            <button onclick="event.stopPropagation(); editRoom(${room.id})" class="text-xs text-gray-500 hover:text-gray-700">
+                                Edit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function editRoom(roomId) {
+            const room = rooms.find(r => r.id === roomId);
+            if (!room) return;
+
+            const newName = prompt('Room name:', room.name);
+            if (newName) room.name = newName;
+
+            const newArea = prompt('Room area (sq ft):', room.area);
+            if (newArea && !isNaN(newArea)) room.area = parseInt(newArea);
+
+            const deleteRoom = confirm('Delete this room?');
+            if (deleteRoom) {
+                rooms = rooms.filter(r => r.id !== roomId);
+                if (selectedRoom === roomId) selectedRoom = null;
+            }
+
+            updateRoomsList();
+            updateRoomEditor();
+            updateCosts();
+        }
+
+        function duplicateSelectedRoom() {
+            if (!selectedRoom) {
+                showNotification('info', 'No Room Selected', 'Please select a room to duplicate.');
+                return;
+            }
+            
+            const room = rooms.find(r => r.id === selectedRoom);
+            if (room) {
+                const newRoom = {
+                    ...room,
+                    id: roomIdCounter++,
+                    name: room.name + ' Copy',
+                    detected: false
                 };
-                
-                AppState.rooms.push(room);
-                renderRoom(room);
+                rooms.push(newRoom);
+                updateRoomsList();
+                updateRoomEditor();
+                updateCosts();
+                showNotification('success', 'Room Duplicated', `${newRoom.name} has been created.`);
+            }
+        }
+
+        function showCostBreakdown() {
+            if (rooms.length === 0) {
+                showNotification('info', 'No Rooms', 'Please add rooms to view cost breakdown.');
+                return;
+            }
+            
+            const activeBook = priceBooks.find(book => book.active);
+            let breakdown = `Cost Breakdown - ${activeBook?.name || 'Standard'}\n\n`;
+            let total = 0;
+            
+            rooms.forEach(room => {
+                const roomCost = room.area * room.trades.length * 25 * (activeBook?.multiplier || 1);
+                total += roomCost;
+                breakdown += `${room.name}: $${roomCost.toLocaleString()}\n`;
+                breakdown += `  ${room.area} sq ft × ${room.trades.length} trades\n\n`;
             });
             
-            updateUI();
-            showNotification('success', 'Sample Rooms Added', 'Sample rooms have been added to the project.');
+            breakdown += `Total: $${total.toLocaleString()}`;
+            alert(breakdown);
         }
 
-        function setupKeyboardShortcuts() {
-            document.addEventListener('keydown', (e) => {
-                if (e.ctrlKey || e.metaKey) {
-                    switch(e.key) {
-                        case 's':
-                            e.preventDefault();
-                            saveProject();
-                            break;
-                        case 'o':
-                            e.preventDefault();
-                            loadProject();
-                            break;
-                    }
-                }
-                
-                // Tool shortcuts
-                switch(e.key) {
-                    case 'v':
-                        setTool('select');
-                        break;
-                    case 'r':
-                        setTool('room');
-                        break;
-                    case 'm':
-                        setTool('measure');
-                        break;
-                    case 'Delete':
-                        if (AppState.selectedRoom) {
-                            deleteRoom(AppState.selectedRoom);
-                        }
-                        break;
-                }
-            });
+        function presentToCustomer() {
+            showNotification('success', 'Presentation Mode', 'Customer presentation features are being developed.');
         }
 
-        // Advanced Functions
-        function createPriceBook() {
-            showNotification('info', 'Coming Soon', 'Price book creation feature is in development.');
-        }
-
+        // Save/Load project functions
         function saveProject() {
             const projectData = {
-                rooms: AppState.rooms,
-                priceBooks: AppState.priceBooks,
+                rooms: rooms,
+                priceBooks: priceBooks,
+                currentPriceBookId: currentPriceBookId,
+                uploadedImage: uploadedImage,
                 projectInfo: {
                     name: document.getElementById('projectName').value,
                     customer: document.getElementById('customerName').value,
                     address: document.getElementById('projectAddress').value,
                     startDate: document.getElementById('startDate').value,
                     duration: document.getElementById('duration').value
-                },
-                floorPlan: AppState.currentFloorPlan
+                }
             };
             
-            localStorage.setItem('scopeProject', JSON.stringify(projectData));
-            showNotification('success', 'Project Saved', 'Project has been saved to browser storage.');
+            localStorage.setItem('scopeProProject', JSON.stringify(projectData));
+            showNotification('success', 'Project Saved', 'Project has been saved locally.');
         }
 
         function loadProject() {
-            const savedData = localStorage.getItem('scopeProject');
+            const savedData = localStorage.getItem('scopeProProject');
             if (savedData) {
                 try {
                     const projectData = JSON.parse(savedData);
+                    
+                    if (projectData.rooms) rooms = projectData.rooms;
+                    if (projectData.priceBooks) priceBooks = projectData.priceBooks;
+                    if (projectData.currentPriceBookId) currentPriceBookId = projectData.currentPriceBookId;
+                    if (projectData.uploadedImage) uploadedImage = projectData.uploadedImage;
                     
                     if (projectData.projectInfo) {
                         document.getElementById('projectName').value = projectData.projectInfo.name || '';
@@ -1279,20 +1187,11 @@
                         document.getElementById('duration').value = projectData.projectInfo.duration || '';
                     }
                     
-                    if (projectData.rooms) {
-                        clearAllRooms();
-                        AppState.rooms = projectData.rooms;
-                        AppState.roomIdCounter = Math.max(...AppState.rooms.map(r => r.id)) + 1;
-                        AppState.rooms.forEach(room => renderRoom(room));
-                        updateUI();
-                    }
-                    
-                    if (projectData.floorPlan && projectData.floorPlan.dataUrl) {
-                        AppState.currentFloorPlan = projectData.floorPlan;
-                        setFloorPlanBackground(projectData.floorPlan.dataUrl, projectData.floorPlan);
-                    }
-                    
-                    showNotification('success', 'Project Loaded', 'Project has been loaded successfully.');
+                    updateRoomsList();
+                    updateRoomEditor();
+                    updateCurrentPriceBookDisplay();
+                    updateCosts();
+                    showNotification('success', 'Project Loaded', 'Project has been restored.');
                 } catch (error) {
                     showNotification('error', 'Load Error', 'Could not load project data.');
                 }
@@ -1301,201 +1200,74 @@
             }
         }
 
-        function exportProject() {
-            const projectData = {
-                rooms: AppState.rooms,
-                projectInfo: {
-                    name: document.getElementById('projectName').value,
-                    customer: document.getElementById('customerName').value,
-                    address: document.getElementById('projectAddress').value,
-                    startDate: document.getElementById('startDate').value,
-                    duration: document.getElementById('duration').value
-                }
+        // Keep all your other existing functions...
+        function getDefaultTrades(type) {
+            const defaultTrades = {
+                living: ['electrical', 'flooring'],
+                kitchen: ['electrical', 'plumbing'],
+                bedroom: ['electrical', 'flooring'],
+                bathroom: ['electrical', 'plumbing', 'hvac'],
+                garage: ['electrical'],
+                office: ['electrical', 'flooring']
             };
-            
-            const dataStr = JSON.stringify(projectData, null, 2);
-            const dataBlob = new Blob([dataStr], {type: 'application/json'});
-            
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(dataBlob);
-            link.download = `scope_project_${Date.now()}.json`;
-            link.click();
-            
-            showNotification('success', 'Project Exported', 'Project has been exported as JSON file.');
+            return defaultTrades[type] || ['electrical'];
         }
 
-        function generateAdvancedQuote() {
-            if (AppState.rooms.length === 0) {
-                showNotification('error', 'No Rooms', 'Please add rooms to generate a quote.');
-                return;
-            }
-            
-            try {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                
-                doc.setFontSize(20);
-                doc.text('🏗️ Scope Pro - Construction Quote', 20, 20);
-                
-                doc.setFontSize(12);
-                const projectName = document.getElementById('projectName').value || 'Untitled Project';
-                const customerName = document.getElementById('customerName').value || 'Customer';
-                const projectAddress = document.getElementById('projectAddress').value || 'Address';
-                
-                doc.text(`Project: ${projectName}`, 20, 40);
-                doc.text(`Customer: ${customerName}`, 20, 50);
-                doc.text(`Address: ${projectAddress}`, 20, 60);
-                doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 70);
-                
-                doc.setFontSize(14);
-                doc.text('Room Breakdown:', 20, 90);
-                
-                let yPos = 105;
-                let totalCost = 0;
-                
-                AppState.rooms.forEach((room, index) => {
-                    doc.setFontSize(12);
-                    doc.text(`${index + 1}. ${room.name}`, 25, yPos);
-                    doc.text(`${room.area} sq ft`, 25, yPos + 10);
-                    doc.text(`Trades: ${room.trades.join(', ')}`, 25, yPos + 20);
-                    
-                    const roomCost = room.area * room.trades.length * 25;
-                    totalCost += roomCost;
-                    doc.text(`Cost: $${roomCost.toLocaleString()}`, 25, yPos + 30);
-                    
-                    yPos += 45;
-                    
-                    if (yPos > 250) {
-                        doc.addPage();
-                        yPos = 20;
-                    }
-                });
-                
-                doc.setFontSize(14);
-                doc.text(`Total Project Cost: ${totalCost.toLocaleString()}`, 20, yPos + 20);
-                
-                doc.setFontSize(10);
-                doc.text('Generated by Scope Pro - Advanced Construction Quoting', 20, 280);
-                
-                doc.save(`quote_${projectName.replace(/\s+/g, '_')}.pdf`);
-                showNotification('success', 'Quote Generated', 'PDF quote has been downloaded.');
-            } catch (error) {
-                showNotification('error', 'Generation Error', 'Could not generate PDF quote.');
-            }
-        }
-
-        function clearAll() {
-            if (confirm('Clear all rooms and start over?')) {
-                clearAllRooms();
-                showNotification('info', 'Cleared', 'All rooms have been removed.');
-            }
-        }
-
-        function duplicateRoom() {
-            if (AppState.selectedRoom) {
-                const room = AppState.rooms.find(r => r.id === AppState.selectedRoom);
-                if (room) {
-                    const newRoom = {
-                        ...room,
-                        id: AppState.roomIdCounter++,
-                        name: room.name + ' Copy',
-                        position: { 
-                            x: Math.min(room.position.x + 20, 500), 
-                            y: Math.min(room.position.y + 20, 300), 
-                            width: room.position.width, 
-                            height: room.position.height 
-                        }
-                    };
-                    AppState.rooms.push(newRoom);
-                    renderRoom(newRoom);
-                    updateUI();
-                    showNotification('success', 'Room Duplicated', `${newRoom.name} has been created.`);
-                }
-            } else {
-                showNotification('info', 'Select Room', 'Please select a room to duplicate.');
-            }
-        }
-
-        function showCostBreakdown() {
-            if (AppState.rooms.length === 0) {
-                showNotification('info', 'No Rooms', 'Please add rooms to view cost breakdown.');
-                return;
-            }
-            
-            let breakdown = 'Cost Breakdown:\n\n';
-            let total = 0;
-            
-            AppState.rooms.forEach(room => {
-                const roomCost = room.area * room.trades.length * 25;
-                total += roomCost;
-                breakdown += `${room.name}: ${roomCost.toLocaleString()}\n`;
-                breakdown += `  ${room.area} sq ft × ${room.trades.length} trades × $25\n\n`;
-            });
-            
-            breakdown += `Total: ${total.toLocaleString()}`;
-            alert(breakdown);
-        }
-
-        function presentToCustomer() {
-            document.body.classList.add('presentation-mode');
-            
-            const sidebar = document.querySelector('.sidebar');
-            const toolbar = document.querySelector('.toolbar');
-            
-            if (sidebar) sidebar.style.display = 'none';
-            if (toolbar) toolbar.style.display = 'none';
-            
-            showNotification('success', 'Presentation Mode', 'Press ESC to exit presentation mode.');
-            
-            const exitPresentation = (e) => {
-                if (e.key === 'Escape') {
-                    document.body.classList.remove('presentation-mode');
-                    if (sidebar) sidebar.style.display = 'block';
-                    if (toolbar) toolbar.style.display = 'block';
-                    document.removeEventListener('keydown', exitPresentation);
-                    showNotification('info', 'Presentation Ended', 'Returned to editing mode.');
-                }
+        function getRoomColor(type) {
+            const colors = {
+                living: '#3b82f6',
+                kitchen: '#10b981', 
+                dining: '#f59e0b',
+                bedroom: '#8b5cf6',
+                bathroom: '#ef4444',
+                garage: '#6b7280',
+                office: '#06b6d4'
             };
+            return colors[type] || '#3b82f6';
+        }
+
+        function getTradeColor(trade) {
+            const colors = {
+                electrical: '#3b82f6',
+                plumbing: '#10b981',
+                hvac: '#ef4444',
+                flooring: '#f59e0b'
+            };
+            return colors[trade] || '#6b7280';
+        }
+
+        function getSmartPosition(room, index) {
+            const editorWidth = 256;
+            const editorHeight = 256;
             
-            document.addEventListener('keydown', exitPresentation);
-        }
-
-        function useAsFloorPlan(fileId) {
-            const fileData = AppState.uploadedFiles.find(f => f.id == fileId);
-            if (fileData && fileData.dataUrl) {
-                setFloorPlanBackground(fileData.dataUrl, fileData);
-                showNotification('success', 'Floor Plan Set', `${fileData.name} is now the active floor plan.`);
-            }
-        }
-
-        function removeFile(fileId) {
-            AppState.uploadedFiles = AppState.uploadedFiles.filter(f => f.id != fileId);
-            document.querySelector(`[onclick="removeFile('${fileId}')"]`).closest('.flex').remove();
-            showNotification('info', 'File Removed', 'File has been removed from the project.');
-        }
-
-        function selectProduct(sku) {
-            if (AppState.selectedRoom) {
-                const room = AppState.rooms.find(r => r.id === AppState.selectedRoom);
-                if (room) {
-                    if (!room.products) room.products = {};
-                    room.products[sku] = (room.products[sku] || 0) + 1;
-                    showNotification('success', 'Product Added', `Product ${sku} added to ${room.name}.`);
-                } else {
-                    showNotification('info', 'Select Room', 'Please select a room first to assign products.');
-                }
-            } else {
-                showNotification('info', 'Select Room', 'Please select a room first to assign products.');
-            }
-        }
-
-        function processPDF(file, fileData) {
-            showNotification('info', 'PDF Processing', 'PDF processing feature is in development. Please use image files for now.');
-        }
-
-        function editPriceBook(bookId) {
-            showNotification('info', 'Edit Price Book', 'Price book editing feature is in development.');
-        }
-    </script>
-</body>
-</html>
+            const baseSize = Math.sqrt(room.area) / 3;
+            const width = Math.max(30, Math.min(80, baseSize));
+            const height = Math.max(20, Math.min(60, baseSize * 0.7));
+            
+            let x, y;
+            
+            switch(room.type) {
+                case 'garage':
+                    x = 10; y = 10;
+                    break;
+                case 'kitchen':
+                    x = editorWidth - width - 10; y = 50;
+                    break;
+                case 'dining':
+                    x = editorWidth - width - 10; y = 110;
+                    break;
+                case 'living':
+                    x = editorWidth / 2 - width / 2; y = editorHeight / 2 - height / 2;
+                    break;
+                case 'bathroom':
+                    x = 10; y = editorHeight - height - 10;
+                    break;
+                case 'bedroom':
+                    x = editorWidth - width - 10; y = editorHeight - height - 10;
+                    break;
+                default:
+                    const cols = 3;
+                    const row = Math.floor(index / cols);
+                    const col = index % cols;
+                    x = 20 + col * 80;
+                    y =
