@@ -492,6 +492,7 @@
                             <div class="font-medium">${room.name}</div>
                             <div class="text-sm text-gray-600">${room.area} sq ft</div>
                             <div class="text-xs text-blue-600">${room.trades.join(', ')}</div>
+                            ${room.customProducts ? '<div class="text-xs text-green-600">✓ Custom Products</div>' : ''}
                         </div>
                         <button onclick="event.stopPropagation(); deleteRoom(${room.id})" class="text-red-600 hover:text-red-800 text-sm">
                             🗑️
@@ -501,21 +502,124 @@
             `).join('');
         }
 
-        // Edit room
+        // Edit room - ENHANCED with simple customization
         function editRoom(roomId) {
             const room = rooms.find(r => r.id === roomId);
             if (!room) return;
 
-            const newName = prompt('Room name:', room.name);
-            if (newName) room.name = newName;
+            // Show current auto-calculations
+            const laborRate = parseFloat(document.getElementById('laborRate').value) || 85;
+            const activeBook = priceBooks.find(book => book.active);
+            const multiplier = activeBook ? activeBook.multiplier : 1.0;
 
-            const newArea = prompt('Room area (sq ft):', room.area);
-            if (newArea && !isNaN(newArea)) room.area = parseInt(newArea);
+            let autoCalculations = "Current Auto-Calculations:\\n";
+            let hasCustom = room.customProducts;
 
-            updateRoomsList();
-            updateRoomEditor();
-            updateCosts();
-            alert(`✅ ${room.name} updated`);
+            room.trades.forEach(trade => {
+                const items = activeBook?.items[trade] || [];
+                const avgCost = items.length > 0 ? items.reduce((sum, item) => sum + item.cost, 0) / items.length : 30;
+                
+                let autoQty = 0;
+                switch(trade) {
+                    case 'flooring': autoQty = room.area; break;
+                    case 'electrical': autoQty = Math.round(room.area / 20 * 10) / 10; break;
+                    case 'plumbing': autoQty = Math.round(room.area / 50 * 10) / 10; break;
+                    case 'hvac': autoQty = Math.round(room.area / 30 * 10) / 10; break;
+                }
+                
+                autoCalculations += `${trade}: ${autoQty} units × $${(avgCost * multiplier).toFixed(2)}\\n`;
+            });
+
+            // Simple customization options
+            const choice = prompt(
+                `${room.name} (${room.area} sq ft)\\n\\n` +
+                autoCalculations + "\\n" +
+                (hasCustom ? "✓ This room has custom products\\n\\n" : "\\n") +
+                "Options:\\n" +
+                "1. Change name/area\\n" +
+                "2. Override quantities (\"Hey this shows 6 but I want 8\")\\n" +
+                "3. Use auto-calculations\\n" +
+                "4. Cancel\\n\\n" +
+                "Enter option (1-4):"
+            );
+
+            if (choice === '1') {
+                // Basic editing
+                const newName = prompt('Room name:', room.name);
+                if (newName) room.name = newName;
+
+                const newArea = prompt('Room area (sq ft):', room.area);
+                if (newArea && !isNaN(newArea)) room.area = parseInt(newArea);
+                
+                updateRoomsList();
+                updateRoomEditor();
+                updateCosts();
+                alert(`✅ ${room.name} updated`);
+                
+            } else if (choice === '2') {
+                // Quantity overrides
+                if (!room.customProducts) room.customProducts = {};
+                
+                room.trades.forEach(trade => {
+                    const items = activeBook?.items[trade] || [];
+                    const avgCost = items.length > 0 ? items.reduce((sum, item) => sum + item.cost, 0) / items.length : 30;
+                    
+                    let autoQty = 0;
+                    switch(trade) {
+                        case 'flooring': autoQty = room.area; break;
+                        case 'electrical': autoQty = Math.round(room.area / 20 * 10) / 10; break;
+                        case 'plumbing': autoQty = Math.round(room.area / 50 * 10) / 10; break;
+                        case 'hvac': autoQty = Math.round(room.area / 30 * 10) / 10; break;
+                    }
+                    
+                    const currentQty = room.customProducts[trade]?.quantity || autoQty;
+                    const currentCost = room.customProducts[trade]?.cost || avgCost * multiplier;
+                    const currentLabor = room.customProducts[trade]?.laborHours || (avgCost * multiplier * autoQty / 100);
+                    
+                    const newQty = prompt(
+                        `${trade.toUpperCase()}:\\n` +
+                        `Auto: ${autoQty} units\\n` +
+                        `Current: ${currentQty} units\\n\\n` +
+                        `Enter new quantity (or press Cancel to keep current):`,
+                        currentQty
+                    );
+                    
+                    if (newQty !== null && !isNaN(newQty) && newQty !== '') {
+                        const qty = parseFloat(newQty);
+                        
+                        const newCost = prompt(
+                            `Cost per unit for ${trade}:`,
+                            currentCost.toFixed(2)
+                        );
+                        
+                        const newLabor = prompt(
+                            `Labor hours for ${trade}:`,
+                            currentLabor.toFixed(1)
+                        );
+                        
+                        if (newCost !== null && newLabor !== null) {
+                            room.customProducts[trade] = {
+                                quantity: qty,
+                                cost: parseFloat(newCost) || currentCost,
+                                laborHours: parseFloat(newLabor) || currentLabor
+                            };
+                        }
+                    }
+                });
+                
+                updateRoomsList();
+                updateRoomEditor();
+                updateCosts();
+                alert(`✅ ${room.name} updated with custom quantities!`);
+                
+            } else if (choice === '3') {
+                // Reset to auto
+                room.customProducts = null;
+                updateRoomsList();
+                updateRoomEditor();
+                updateCosts();
+                alert(`✅ ${room.name} reset to auto-calculations`);
+            }
         }
 
         // Delete room
@@ -563,6 +667,7 @@
                         <div style="text-align: center; font-size: 10px; line-height: 1.2;">
                             ${room.name}<br>
                             <span style="font-size: 8px;">${room.area} sq ft</span>
+                            ${room.customProducts ? '<br><span style="font-size: 8px; color: #10b981;">Custom</span>' : ''}
                         </div>
                     `;
                     
@@ -629,7 +734,7 @@
             updateCosts();
         }
 
-        // Update costs
+        // Update costs - ENHANCED to use custom products
         function updateCosts() {
             const laborRate = parseFloat(document.getElementById('laborRate').value) || 85;
             const markupPercent = parseFloat(document.getElementById('markupPercent').value) || 25;
@@ -644,36 +749,48 @@
                 let roomTotal = 0;
                 
                 room.trades.forEach(trade => {
-                    const items = activeBook?.items[trade] || [];
-                    const avgCost = items.length > 0 ? 
-                        items.reduce((sum, item) => sum + item.cost, 0) / items.length : 30;
+                    let tradeCost = 0;
                     
-                    let cost = 0;
-                    switch(trade) {
-                        case 'flooring':
-                            cost = room.area * avgCost * multiplier;
-                            break;
-                        case 'electrical':
-                            cost = (room.area / 20) * avgCost * multiplier;
-                            break;
-                        case 'plumbing':
-                            cost = (room.area / 50) * avgCost * multiplier;
-                            break;
-                        case 'hvac':
-                            cost = (room.area / 30) * avgCost * multiplier;
-                            break;
-                        default:
-                            cost = room.area * 5 * multiplier;
+                    // Check if room has custom products for this trade
+                    if (room.customProducts && room.customProducts[trade]) {
+                        // Use custom calculation
+                        const custom = room.customProducts[trade];
+                        const materialCost = custom.quantity * custom.cost;
+                        const laborCost = custom.laborHours * laborRate;
+                        tradeCost = (materialCost + laborCost) * (1 + markupPercent / 100);
+                    } else {
+                        // Use auto calculation
+                        const items = activeBook?.items[trade] || [];
+                        const avgCost = items.length > 0 ? 
+                            items.reduce((sum, item) => sum + item.cost, 0) / items.length : 30;
+                        
+                        let cost = 0;
+                        switch(trade) {
+                            case 'flooring':
+                                cost = room.area * avgCost * multiplier;
+                                break;
+                            case 'electrical':
+                                cost = (room.area / 20) * avgCost * multiplier;
+                                break;
+                            case 'plumbing':
+                                cost = (room.area / 50) * avgCost * multiplier;
+                                break;
+                            case 'hvac':
+                                cost = (room.area / 30) * avgCost * multiplier;
+                                break;
+                            default:
+                                cost = room.area * 5 * multiplier;
+                        }
+                        
+                        const laborHours = cost / 100;
+                        const laborCost = laborHours * laborRate;
+                        tradeCost = (cost + laborCost) * (1 + markupPercent / 100);
                     }
                     
-                    const laborHours = cost / 100;
-                    const laborCost = laborHours * laborRate;
-                    const totalTradeCost = (cost + laborCost) * (1 + markupPercent / 100);
-                    
                     if (!costsByTrade[trade]) costsByTrade[trade] = 0;
-                    costsByTrade[trade] += totalTradeCost;
-                    totalCost += totalTradeCost;
-                    roomTotal += totalTradeCost;
+                    costsByTrade[trade] += tradeCost;
+                    totalCost += tradeCost;
+                    roomTotal += tradeCost;
                 });
                 
                 costsByRoom[room.name] = roomTotal;
@@ -688,20 +805,20 @@
                     costBreakdown.innerHTML = Object.entries(costsByTrade).map(([trade, cost]) => `
                         <div class="flex justify-between py-2 border-b">
                             <span class="capitalize font-medium">${trade}</span>
-                            <span class="text-blue-600">${Math.round(cost).toLocaleString()}</span>
+                            <span class="text-blue-600">$${Math.round(cost).toLocaleString()}</span>
                         </div>
                     `).join('');
                 } else {
                     costBreakdown.innerHTML = Object.entries(costsByRoom).map(([room, cost]) => `
                         <div class="flex justify-between py-2 border-b">
                             <span class="font-medium">${room}</span>
-                            <span class="text-blue-600">${Math.round(cost).toLocaleString()}</span>
+                            <span class="text-blue-600">$${Math.round(cost).toLocaleString()}</span>
                         </div>
                     `).join('');
                 }
             }
 
-            document.getElementById('totalCost').textContent = `${Math.round(totalCost).toLocaleString()}`;
+            document.getElementById('totalCost').textContent = `$${Math.round(totalCost).toLocaleString()}`;
             document.getElementById('roomCount').textContent = rooms.length;
         }
 
@@ -762,7 +879,7 @@
                                 <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
                                     <div>
                                         <span class="font-medium">${item.name}</span>
-                                        <span class="text-sm text-gray-600"> - $${item.cost} per ${item.unit}</span>
+                                        <span class="text-sm text-gray-600"> - $${item.cost.toFixed(2)} per ${item.unit}</span>
                                     </div>
                                     <button onclick="deleteItem('${trade}', ${index})" class="text-red-600 hover:text-red-800 text-sm">
                                         🗑️
@@ -853,7 +970,7 @@
                 doc.text(`Address: ${projectAddress}`, 20, 60);
                 doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 70);
                 doc.text(`Price Book: ${activeBook?.name || 'Standard'} (${multiplier}x)`, 20, 80);
-                doc.text(`Labor Rate: ${laborRate}/hr | Markup: ${markupPercent}%`, 20, 90);
+                doc.text(`Labor Rate: $${laborRate}/hr | Markup: ${markupPercent}%`, 20, 90);
                 
                 // Detailed Room Breakdown
                 doc.setFontSize(14);
@@ -872,64 +989,81 @@
                     doc.setFontSize(12);
                     doc.setFont(undefined, 'bold');
                     doc.text(`${roomIndex + 1}. ${room.name} (${room.area} sq ft)`, 25, yPos);
+                    if (room.customProducts) {
+                        doc.text('*Custom Products*', 140, yPos);
+                    }
                     doc.setFont(undefined, 'normal');
                     yPos += 15;
                     
                     let roomTotal = 0;
                     
                     room.trades.forEach(trade => {
-                        const items = activeBook?.items[trade] || [];
-                        const avgCost = items.length > 0 ? 
-                            items.reduce((sum, item) => sum + item.cost, 0) / items.length : 30;
-                        
                         let cost = 0;
                         let description = '';
+                        let laborHours = 0;
+                        let laborCost = 0;
+                        let totalTradeCost = 0;
                         
-                        switch(trade) {
-                            case 'flooring':
-                                cost = room.area * avgCost * multiplier;
-                                description = `${room.area} sq ft × ${(avgCost * multiplier).toFixed(2)}`;
-                                break;
-                            case 'electrical':
-                                cost = (room.area / 20) * avgCost * multiplier;
-                                description = `${(room.area / 20).toFixed(1)} units × ${(avgCost * multiplier).toFixed(2)}`;
-                                break;
-                            case 'plumbing':
-                                cost = (room.area / 50) * avgCost * multiplier;
-                                description = `${(room.area / 50).toFixed(1)} units × ${(avgCost * multiplier).toFixed(2)}`;
-                                break;
-                            case 'hvac':
-                                cost = (room.area / 30) * avgCost * multiplier;
-                                description = `${(room.area / 30).toFixed(1)} units × ${(avgCost * multiplier).toFixed(2)}`;
-                                break;
-                            default:
-                                cost = room.area * 5 * multiplier;
-                                description = `${room.area} sq ft × ${(5 * multiplier).toFixed(2)}`;
+                        if (room.customProducts && room.customProducts[trade]) {
+                            // Custom calculation
+                            const custom = room.customProducts[trade];
+                            cost = custom.quantity * custom.cost;
+                            description = `${custom.quantity} units × $${custom.cost.toFixed(2)}`;
+                            laborHours = custom.laborHours;
+                            laborCost = laborHours * laborRate;
+                            totalTradeCost = (cost + laborCost) * (1 + markupPercent / 100);
+                        } else {
+                            // Auto calculation
+                            const items = activeBook?.items[trade] || [];
+                            const avgCost = items.length > 0 ? 
+                                items.reduce((sum, item) => sum + item.cost, 0) / items.length : 30;
+                            
+                            switch(trade) {
+                                case 'flooring':
+                                    cost = room.area * avgCost * multiplier;
+                                    description = `${room.area} sq ft × $${(avgCost * multiplier).toFixed(2)}`;
+                                    break;
+                                case 'electrical':
+                                    cost = (room.area / 20) * avgCost * multiplier;
+                                    description = `${(room.area / 20).toFixed(1)} units × $${(avgCost * multiplier).toFixed(2)}`;
+                                    break;
+                                case 'plumbing':
+                                    cost = (room.area / 50) * avgCost * multiplier;
+                                    description = `${(room.area / 50).toFixed(1)} units × $${(avgCost * multiplier).toFixed(2)}`;
+                                    break;
+                                case 'hvac':
+                                    cost = (room.area / 30) * avgCost * multiplier;
+                                    description = `${(room.area / 30).toFixed(1)} units × $${(avgCost * multiplier).toFixed(2)}`;
+                                    break;
+                                default:
+                                    cost = room.area * 5 * multiplier;
+                                    description = `${room.area} sq ft × $${(5 * multiplier).toFixed(2)}`;
+                            }
+                            
+                            laborHours = cost / 100;
+                            laborCost = laborHours * laborRate;
+                            totalTradeCost = (cost + laborCost) * (1 + markupPercent / 100);
                         }
-                        
-                        const laborHours = cost / 100;
-                        const laborCost = laborHours * laborRate;
-                        const totalTradeCost = (cost + laborCost) * (1 + markupPercent / 100);
                         
                         // Trade line
                         doc.text(`   ${trade.charAt(0).toUpperCase() + trade.slice(1)}: ${description}`, 30, yPos);
-                        doc.text(`${cost.toFixed(0)}`, 160, yPos);
+                        doc.text(`$${cost.toFixed(0)}`, 160, yPos);
                         yPos += 10;
                         
                         // Labor line
-                        doc.text(`   + Labor: ${laborHours.toFixed(1)} hrs × ${laborRate}`, 30, yPos);
-                        doc.text(`${laborCost.toFixed(0)}`, 160, yPos);
+                        doc.text(`   + Labor: ${laborHours.toFixed(1)} hrs × $${laborRate}`, 30, yPos);
+                        doc.text(`$${laborCost.toFixed(0)}`, 160, yPos);
                         yPos += 10;
                         
                         // Markup line
                         doc.text(`   + Markup: ${markupPercent}%`, 30, yPos);
-                        doc.text(`${(totalTradeCost - cost - laborCost).toFixed(0)}`, 160, yPos);
+                        doc.text(`$${(totalTradeCost - cost - laborCost).toFixed(0)}`, 160, yPos);
                         yPos += 10;
                         
                         // Trade total
                         doc.setFont(undefined, 'bold');
                         doc.text(`   Trade Total:`, 30, yPos);
-                        doc.text(`${totalTradeCost.toFixed(0)}`, 160, yPos);
+                        doc.text(`$${totalTradeCost.toFixed(0)}`, 160, yPos);
                         doc.setFont(undefined, 'normal');
                         yPos += 15;
                         
@@ -939,7 +1073,7 @@
                     // Room total
                     doc.setFont(undefined, 'bold');
                     doc.text(`${room.name} Total:`, 25, yPos);
-                    doc.text(`${roomTotal.toFixed(0)}`, 160, yPos);
+                    doc.text(`$${roomTotal.toFixed(0)}`, 160, yPos);
                     doc.setFont(undefined, 'normal');
                     yPos += 20;
                     
@@ -955,7 +1089,7 @@
                 doc.setFontSize(16);
                 doc.setFont(undefined, 'bold');
                 doc.text('PROJECT TOTAL:', 25, yPos);
-                doc.text(`${grandTotal.toFixed(0)}`, 160, yPos);
+                doc.text(`$${grandTotal.toFixed(0)}`, 160, yPos);
                 
                 // Summary section
                 yPos += 20;
@@ -967,7 +1101,7 @@
                 yPos += 10;
                 doc.text(`Price Book: ${activeBook?.name || 'Standard'}`, 30, yPos);
                 yPos += 10;
-                doc.text(`Labor Rate: ${laborRate}/hour`, 30, yPos);
+                doc.text(`Labor Rate: $${laborRate}/hour`, 30, yPos);
                 yPos += 10;
                 doc.text(`Markup: ${markupPercent}%`, 30, yPos);
                 
@@ -993,69 +1127,91 @@
             
             let breakdown = `<div class="max-h-96 overflow-y-auto">`;
             breakdown += `<h3 class="text-lg font-bold mb-4">Cost Breakdown (${activeBook?.name || 'Standard'})</h3>`;
-            breakdown += `<div class="text-sm text-gray-600 mb-4">Labor Rate: ${laborRate}/hr | Markup: ${markupPercent}% | Price Book Multiplier: ${multiplier}x</div>`;
+            breakdown += `<div class="text-sm text-gray-600 mb-4">Labor Rate: $${laborRate}/hr | Markup: ${markupPercent}% | Price Book Multiplier: ${multiplier}x</div>`;
             
             let totalCost = 0;
             
             rooms.forEach(room => {
                 breakdown += `<div class="mb-6 p-4 bg-gray-50 rounded-lg">`;
-                breakdown += `<h4 class="font-semibold text-blue-900 mb-3">📍 ${room.name} (${room.area} sq ft)</h4>`;
+                breakdown += `<h4 class="font-semibold text-blue-900 mb-3">📍 ${room.name} (${room.area} sq ft)`;
+                if (room.customProducts) {
+                    breakdown += ` <span class="text-green-600 text-sm">✓ Custom Products</span>`;
+                }
+                breakdown += `</h4>`;
                 let roomTotal = 0;
                 
                 room.trades.forEach(trade => {
-                    const items = activeBook?.items[trade] || [];
-                    const avgCost = items.length > 0 ? 
-                        items.reduce((sum, item) => sum + item.cost, 0) / items.length : 30;
-                    
                     let cost = 0;
                     let description = '';
+                    let laborHours = 0;
+                    let laborCost = 0;
+                    let totalTradeCost = 0;
                     
-                    switch(trade) {
-                        case 'flooring':
-                            cost = room.area * avgCost * multiplier;
-                            description = `${room.area} sq ft × ${(avgCost * multiplier).toFixed(2)}`;
-                            break;
-                        case 'electrical':
-                            cost = (room.area / 20) * avgCost * multiplier;
-                            description = `${(room.area / 20).toFixed(1)} units × ${(avgCost * multiplier).toFixed(2)}`;
-                            break;
-                        case 'plumbing':
-                            cost = (room.area / 50) * avgCost * multiplier;
-                            description = `${(room.area / 50).toFixed(1)} units × ${(avgCost * multiplier).toFixed(2)}`;
-                            break;
-                        case 'hvac':
-                            cost = (room.area / 30) * avgCost * multiplier;
-                            description = `${(room.area / 30).toFixed(1)} units × ${(avgCost * multiplier).toFixed(2)}`;
-                            break;
-                        default:
-                            cost = room.area * 5 * multiplier;
-                            description = `${room.area} sq ft × ${(5 * multiplier).toFixed(2)}`;
+                    if (room.customProducts && room.customProducts[trade]) {
+                        // Custom calculation
+                        const custom = room.customProducts[trade];
+                        cost = custom.quantity * custom.cost;
+                        description = `${custom.quantity} units × $${custom.cost.toFixed(2)}`;
+                        laborHours = custom.laborHours;
+                        laborCost = laborHours * laborRate;
+                        totalTradeCost = (cost + laborCost) * (1 + markupPercent / 100);
+                    } else {
+                        // Auto calculation
+                        const items = activeBook?.items[trade] || [];
+                        const avgCost = items.length > 0 ? 
+                            items.reduce((sum, item) => sum + item.cost, 0) / items.length : 30;
+                        
+                        switch(trade) {
+                            case 'flooring':
+                                cost = room.area * avgCost * multiplier;
+                                description = `${room.area} sq ft × $${(avgCost * multiplier).toFixed(2)}`;
+                                break;
+                            case 'electrical':
+                                cost = (room.area / 20) * avgCost * multiplier;
+                                description = `${(room.area / 20).toFixed(1)} units × $${(avgCost * multiplier).toFixed(2)}`;
+                                break;
+                            case 'plumbing':
+                                cost = (room.area / 50) * avgCost * multiplier;
+                                description = `${(room.area / 50).toFixed(1)} units × $${(avgCost * multiplier).toFixed(2)}`;
+                                break;
+                            case 'hvac':
+                                cost = (room.area / 30) * avgCost * multiplier;
+                                description = `${(room.area / 30).toFixed(1)} units × $${(avgCost * multiplier).toFixed(2)}`;
+                                break;
+                            default:
+                                cost = room.area * 5 * multiplier;
+                                description = `${room.area} sq ft × $${(5 * multiplier).toFixed(2)}`;
+                        }
+                        
+                        laborHours = cost / 100;
+                        laborCost = laborHours * laborRate;
+                        totalTradeCost = (cost + laborCost) * (1 + markupPercent / 100);
                     }
                     
-                    const laborHours = cost / 100;
-                    const laborCost = laborHours * laborRate;
-                    const totalTradeCost = (cost + laborCost) * (1 + markupPercent / 100);
-                    
                     breakdown += `<div class="ml-4 mb-3 p-3 bg-white rounded border-l-4 border-blue-500">`;
-                    breakdown += `<div class="font-medium text-gray-800 capitalize mb-2">${trade}</div>`;
+                    breakdown += `<div class="font-medium text-gray-800 capitalize mb-2">${trade}`;
+                    if (room.customProducts && room.customProducts[trade]) {
+                        breakdown += ` <span class="text-green-600 text-xs">Custom</span>`;
+                    }
+                    breakdown += `</div>`;
                     breakdown += `<div class="text-sm space-y-1">`;
-                    breakdown += `<div>Materials: ${description} = ${cost.toFixed(0)}</div>`;
-                    breakdown += `<div>Labor: ${laborHours.toFixed(1)} hrs × ${laborRate} = ${laborCost.toFixed(0)}</div>`;
-                    breakdown += `<div>Markup: ${markupPercent}% = ${(totalTradeCost - cost - laborCost).toFixed(0)}</div>`;
-                    breakdown += `<div class="font-semibold text-blue-600 pt-2 border-t">Trade Total: ${totalTradeCost.toFixed(0)}</div>`;
+                    breakdown += `<div>Materials: ${description} = $${cost.toFixed(0)}</div>`;
+                    breakdown += `<div>Labor: ${laborHours.toFixed(1)} hrs × $${laborRate} = $${laborCost.toFixed(0)}</div>`;
+                    breakdown += `<div>Markup: ${markupPercent}% = $${(totalTradeCost - cost - laborCost).toFixed(0)}</div>`;
+                    breakdown += `<div class="font-semibold text-blue-600 pt-2 border-t">Trade Total: $${totalTradeCost.toFixed(0)}</div>`;
                     breakdown += `</div></div>`;
                     
                     roomTotal += totalTradeCost;
                 });
                 
                 breakdown += `<div class="font-bold text-lg text-blue-900 mt-4 pt-3 border-t border-blue-200">`;
-                breakdown += `${room.name} Total: ${roomTotal.toFixed(0)}</div>`;
+                breakdown += `${room.name} Total: $${roomTotal.toFixed(0)}</div>`;
                 breakdown += `</div>`;
                 totalCost += roomTotal;
             });
             
             breakdown += `<div class="text-center p-4 bg-blue-50 rounded-lg mt-6">`;
-            breakdown += `<div class="text-2xl font-bold text-blue-900">💰 PROJECT TOTAL: ${Math.round(totalCost).toLocaleString()}</div>`;
+            breakdown += `<div class="text-2xl font-bold text-blue-900">💰 PROJECT TOTAL: $${Math.round(totalCost).toLocaleString()}</div>`;
             breakdown += `<div class="text-sm text-blue-700 mt-2">(Matches main display: ${document.getElementById('totalCost').textContent})</div>`;
             breakdown += `</div></div>`;
             
@@ -1099,7 +1255,11 @@
             let details = 'Room Details:\n\n';
             rooms.forEach(room => {
                 details += `${room.name}: ${room.area} sq ft\n`;
-                details += `Trades: ${room.trades.join(', ')}\n\n`;
+                details += `Trades: ${room.trades.join(', ')}\n`;
+                if (room.customProducts) {
+                    details += `Custom Products: Yes\n`;
+                }
+                details += '\n';
             });
             alert(details);
         }
