@@ -682,6 +682,90 @@
             ];
         }
 
+        function floodFill(grayscale, visited, startX, startY, width, height, threshold) {
+            const stack = [{ x: startX, y: startY }];
+            const pixels = [];
+            let size = 0;
+            
+            while (stack.length > 0) {
+                const { x, y } = stack.pop();
+                const index = y * width + x;
+                
+                if (x < 0 || x >= width || y < 0 || y >= height || visited[index] || grayscale[index] <= threshold) {
+                    continue;
+                }
+                
+                visited[index] = true;
+                pixels.push({ x, y });
+                size++;
+                
+                // Add neighboring pixels
+                stack.push(
+                    { x: x + 1, y },
+                    { x: x - 1, y },
+                    { x, y: y + 1 },
+                    { x, y: y - 1 }
+                );
+                
+                // Limit flood fill size for performance
+                if (size > 1000) break;
+            }
+            
+            return { pixels, size };
+        }
+
+        function calculateBounds(pixels) {
+            let minX = Infinity, maxX = -Infinity;
+            let minY = Infinity, maxY = -Infinity;
+            
+            pixels.forEach(({ x, y }) => {
+                minX = Math.min(minX, x);
+                maxX = Math.max(maxX, x);
+                minY = Math.min(minY, y);
+                maxY = Math.max(maxY, y);
+            });
+            
+            return { minX, maxX, minY, maxY };
+        }
+
+        function generateRoomName(center, width, height, roomIndex) {
+            const x = center.x / width;
+            const y = center.y / height;
+            
+            // Generate names based on position
+            if (x < 0.3 && y < 0.3) return 'Foyer';
+            if (x > 0.7 && y < 0.4) return 'Kitchen';
+            if (x < 0.4 && y > 0.6) return 'Garage';
+            if (x > 0.6 && y > 0.6) return 'Dining Room';
+            if (x > 0.4 && x < 0.7 && y > 0.4) return 'Living Room';
+            
+            return `Room ${roomIndex + 1}`;
+        }
+
+        function determineRoomType(center, width, height, areaSize) {
+            const x = center.x / width;
+            const y = center.y / height;
+            const relativeSize = areaSize / (width * height);
+            
+            // Determine room type based on position and size
+            if (x > 0.7 && y < 0.4) return 'kitchen';
+            if (relativeSize < 0.03) return 'bathroom';
+            if (x < 0.4 && y > 0.6) return 'garage';
+            if (relativeSize > 0.15) return 'living';
+            
+            return 'bedroom';
+        }
+
+        function estimateRoomArea(pixelCount, imageWidth, imageHeight) {
+            // Rough estimation: assume 1000 sq ft total home, scale by pixel ratio
+            const totalPixels = imageWidth * imageHeight;
+            const roomRatio = pixelCount / totalPixels;
+            const estimatedArea = Math.round(roomRatio * 1000);
+            
+            // Reasonable bounds
+            return Math.max(50, Math.min(400, estimatedArea));
+        }
+
  scaleX) - 30,
                                     y: Math.floor(center.y * scaleY) - 20,
                                     width: Math.max(60, Math.min(120, Math.floor((bounds.maxX - bounds.minX) * scaleX))),
