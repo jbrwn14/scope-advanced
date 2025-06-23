@@ -825,7 +825,7 @@
             }
         }
 
-        // Show cost breakdown - NOW MATCHES THE MAIN CALCULATION
+        // Show cost breakdown - EXACT SAME CALCULATION AS updateCosts()
         function showCostBreakdown() {
             if (rooms.length === 0) {
                 alert('❌ Please add rooms to see cost breakdown');
@@ -838,59 +838,59 @@
             const multiplier = activeBook ? activeBook.multiplier : 1.0;
             
             let breakdown = `Cost Breakdown (Using: ${activeBook?.name || 'Standard'})\n`;
-            breakdown += `Labor Rate: ${laborRate}/hr | Markup: ${markupPercent}% | Price Book Multiplier: ${multiplier}x\n\n`;
+            breakdown += `Labor Rate: $${laborRate}/hr | Markup: ${markupPercent}% | Price Book Multiplier: ${multiplier}x\n\n`;
             
-            let grandTotal = 0;
+            let totalCost = 0;
+            const costsByTrade = {};
             
+            // Use EXACT same calculation as updateCosts()
             rooms.forEach(room => {
-                let roomTotal = 0;
                 breakdown += `📍 ${room.name} (${room.area} sq ft):\n`;
+                let roomTotal = 0;
                 
                 room.trades.forEach(trade => {
                     const items = activeBook?.items[trade] || [];
                     const avgCost = items.length > 0 ? 
                         items.reduce((sum, item) => sum + item.cost, 0) / items.length : 30;
                     
-                    let materialCost = 0;
-                    let quantity = 0;
-                    
+                    let cost = 0;
                     switch(trade) {
                         case 'flooring':
-                            quantity = room.area;
-                            materialCost = quantity * avgCost * multiplier;
-                            breakdown += `  🏠 Flooring: ${quantity} sq ft × ${avgCost.toFixed(2)} × ${multiplier}x = ${materialCost.toFixed(0)}\n`;
+                            cost = room.area * avgCost * multiplier;
+                            breakdown += `  🏠 Flooring: ${room.area} sq ft × $${(avgCost * multiplier).toFixed(2)} = $${cost.toFixed(0)}\n`;
                             break;
                         case 'electrical':
-                            quantity = Math.ceil(room.area / 20); // 1 outlet per 20 sq ft
-                            materialCost = quantity * avgCost * multiplier;
-                            breakdown += `  💡 Electrical: ${quantity} outlets × ${avgCost.toFixed(2)} × ${multiplier}x = ${materialCost.toFixed(0)}\n`;
+                            cost = (room.area / 20) * avgCost * multiplier;
+                            breakdown += `  💡 Electrical: ${(room.area / 20).toFixed(1)} units × $${(avgCost * multiplier).toFixed(2)} = $${cost.toFixed(0)}\n`;
                             break;
                         case 'plumbing':
-                            quantity = Math.ceil(room.area / 50); // Less plumbing per sq ft
-                            materialCost = quantity * avgCost * multiplier;
-                            breakdown += `  🚰 Plumbing: ${quantity} fixtures × ${avgCost.toFixed(2)} × ${multiplier}x = ${materialCost.toFixed(0)}\n`;
+                            cost = (room.area / 50) * avgCost * multiplier;
+                            breakdown += `  🚰 Plumbing: ${(room.area / 50).toFixed(1)} units × $${(avgCost * multiplier).toFixed(2)} = $${cost.toFixed(0)}\n`;
                             break;
                         case 'hvac':
-                            quantity = Math.ceil(room.area / 30);
-                            materialCost = quantity * avgCost * multiplier;
-                            breakdown += `  🌡️ HVAC: ${quantity} units × ${avgCost.toFixed(2)} × ${multiplier}x = ${materialCost.toFixed(0)}\n`;
+                            cost = (room.area / 30) * avgCost * multiplier;
+                            breakdown += `  🌡️ HVAC: ${(room.area / 30).toFixed(1)} units × $${(avgCost * multiplier).toFixed(2)} = $${cost.toFixed(0)}\n`;
                             break;
+                        default:
+                            cost = room.area * 5 * multiplier;
+                            breakdown += `  🔧 ${trade}: ${room.area} sq ft × $${(5 * multiplier).toFixed(2)} = $${cost.toFixed(0)}\n`;
                     }
                     
-                    const laborHours = materialCost / 100;
+                    const laborHours = cost / 100;
                     const laborCost = laborHours * laborRate;
-                    const tradeTotalBeforeMarkup = materialCost + laborCost;
-                    const tradeTotal = tradeTotalBeforeMarkup * (1 + markupPercent / 100);
+                    const totalTradeCost = (cost + laborCost) * (1 + markupPercent / 100);
                     
-                    breakdown += `    + Labor: ${laborHours.toFixed(1)} hrs × ${laborRate} = ${laborCost.toFixed(0)}\n`;
-                    breakdown += `    + Markup: ${markupPercent}% = ${(tradeTotal - tradeTotalBeforeMarkup).toFixed(0)}\n`;
-                    breakdown += `    = Trade Total: ${tradeTotal.toFixed(0)}\n\n`;
+                    breakdown += `    + Labor: ${laborHours.toFixed(1)} hrs × $${laborRate} = $${laborCost.toFixed(0)}\n`;
+                    breakdown += `    + Markup: ${markupPercent}% = $${(totalTradeCost - cost - laborCost).toFixed(0)}\n`;
+                    breakdown += `    = Trade Total: $${totalTradeCost.toFixed(0)}\n\n`;
                     
-                    roomTotal += tradeTotal;
+                    if (!costsByTrade[trade]) costsByTrade[trade] = 0;
+                    costsByTrade[trade] += totalTradeCost;
+                    totalCost += totalTradeCost;
+                    roomTotal += totalTradeCost;
                 });
                 
-                breakdown += `  🏠 ${room.name} Total: ${roomTotal.toFixed(0)}\n\n`;
-                grandTotal += roomTotal;
+                breakdown += `  🏠 ${room.name} Total: $${roomTotal.toFixed(0)}\n\n`;
             });
             
             // Show price book details
@@ -899,12 +899,14 @@
                 Object.entries(activeBook.items).forEach(([trade, items]) => {
                     if (items.length > 0) {
                         const avgCost = items.reduce((sum, item) => sum + item.cost, 0) / items.length;
-                        breakdown += `  ${trade}: ${items.length} items, avg ${avgCost.toFixed(2)}\n`;
+                        breakdown += `  ${trade}: ${items.length} items, avg $${avgCost.toFixed(2)}\n`;
                     }
                 });
             }
             
-            breakdown += `\n💰 GRAND TOTAL: ${grandTotal.toFixed(0)}`;
+            breakdown += `\n💰 GRAND TOTAL: $${Math.round(totalCost).toLocaleString()}`;
+            breakdown += `\n(Matches main display: ${document.getElementById('totalCost').textContent})`;
+            
             alert(breakdown);
         }
 
