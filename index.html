@@ -506,200 +506,16 @@
             const room = rooms.find(r => r.id === roomId);
             if (!room) return;
 
-            // Create advanced room editor modal
-            const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4';
-            
-            const activeBook = priceBooks.find(book => book.active);
-            const availableProducts = {};
-            
-            // Get all available products by trade
-            if (activeBook) {
-                Object.entries(activeBook.items).forEach(([trade, items]) => {
-                    availableProducts[trade] = items;
-                });
-            }
-            
-            // Initialize room products if not exists
-            if (!room.products) {
-                room.products = {};
-                room.trades.forEach(trade => {
-                    room.products[trade] = [];
-                });
-            }
-            
-            modal.innerHTML = `
-                <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-screen overflow-y-auto">
-                    <div class="p-6">
-                        <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-xl font-bold">⚙️ Edit Room: ${room.name}</h2>
-                            <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700 text-2xl">
-                                &times;
-                            </button>
-                        </div>
-                        
-                        <!-- Basic Room Info -->
-                        <div class="grid grid-cols-2 gap-4 mb-6">
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Room Name</label>
-                                <input type="text" id="editRoomName" value="${room.name}" class="w-full px-3 py-2 border rounded">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Room Area (sq ft)</label>
-                                <input type="number" id="editRoomArea" value="${room.area}" class="w-full px-3 py-2 border rounded">
-                            </div>
-                        </div>
-                        
-                        <!-- Trades Selection -->
-                        <div class="mb-6">
-                            <label class="block text-sm font-medium mb-2">Active Trades</label>
-                            <div class="grid grid-cols-4 gap-2">
-                                <label class="flex items-center">
-                                    <input type="checkbox" ${room.trades.includes('electrical') ? 'checked' : ''} value="electrical" class="trade-checkbox mr-2">
-                                    💡 Electrical
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="checkbox" ${room.trades.includes('plumbing') ? 'checked' : ''} value="plumbing" class="trade-checkbox mr-2">
-                                    🚰 Plumbing
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="checkbox" ${room.trades.includes('hvac') ? 'checked' : ''} value="hvac" class="trade-checkbox mr-2">
-                                    🌡️ HVAC
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="checkbox" ${room.trades.includes('flooring') ? 'checked' : ''} value="flooring" class="trade-checkbox mr-2">
-                                    🏠 Flooring
-                                </label>
-                            </div>
-                        </div>
-                        
-                        <!-- Products by Trade -->
-                        <div id="tradeProductsContainer">
-                            ${room.trades.map(trade => `
-                                <div class="mb-6 p-4 border rounded-lg trade-section" data-trade="${trade}">
-                                    <h3 class="text-lg font-semibold mb-4 capitalize">${trade} Products</h3>
-                                    <div id="products-${trade}">
-                                        ${(room.products[trade] || []).map((product, index) => `
-                                            <div class="grid grid-cols-5 gap-2 mb-2 product-row">
-                                                <select class="px-2 py-1 border rounded text-sm">
-                                                    ${(availableProducts[trade] || []).map(item => 
-                                                        `<option value="${item.name}" ${item.name === product.name ? 'selected' : ''}>${item.name}</option>`
-                                                    ).join('')}
-                                                </select>
-                                                <input type="number" placeholder="Qty" value="${product.quantity || 1}" class="px-2 py-1 border rounded text-sm">
-                                                <input type="number" placeholder="$/unit" value="${product.cost || 0}" step="0.01" class="px-2 py-1 border rounded text-sm">
-                                                <input type="number" placeholder="Labor hrs" value="${product.laborHours || 0}" step="0.1" class="px-2 py-1 border rounded text-sm">
-                                                <button onclick="this.closest('.product-row').remove()" class="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600">🗑️</button>
-                                            </div>
-                                        `).join('')}
-                                    </div>
-                                    <button onclick="addProduct('${trade}')" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 mt-2">
-                                        ➕ Add ${trade} Product
-                                    </button>
-                                </div>
-                            `).join('')}
-                        </div>
-                        
-                        <!-- Save Button -->
-                        <div class="flex justify-end space-x-3 pt-4 border-t">
-                            <button onclick="this.closest('.fixed').remove()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
-                                Cancel
-                            </button>
-                            <button onclick="saveRoomEdits(${room.id})" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-                                💾 Save Changes
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            document.body.appendChild(modal);
-            
-            // Add event listener for trade checkboxes
-            modal.querySelectorAll('.trade-checkbox').forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
-                    updateTradeProductsContainer();
-                });
-            });
-            
-            // Function to add product to trade
-            window.addProduct = function(trade) {
-                const container = document.getElementById(`products-${trade}`);
-                const availableItems = availableProducts[trade] || [];
-                const defaultItem = availableItems[0] || { name: 'Custom Item', cost: 0 };
-                
-                const productRow = document.createElement('div');
-                productRow.className = 'grid grid-cols-5 gap-2 mb-2 product-row';
-                productRow.innerHTML = `
-                    <select class="px-2 py-1 border rounded text-sm">
-                        ${availableItems.map(item => 
-                            `<option value="${item.name}">${item.name}</option>`
-                        ).join('')}
-                        <option value="custom">Custom Product</option>
-                    </select>
-                    <input type="number" placeholder="Qty" value="1" class="px-2 py-1 border rounded text-sm">
-                    <input type="number" placeholder="$/unit" value="${defaultItem.cost}" step="0.01" class="px-2 py-1 border rounded text-sm">
-                    <input type="number" placeholder="Labor hrs" value="1.0" step="0.1" class="px-2 py-1 border rounded text-sm">
-                    <button onclick="this.closest('.product-row').remove()" class="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600">🗑️</button>
-                `;
-                container.appendChild(productRow);
-            };
-            
-            // Function to update trade products container when trades change
-            function updateTradeProductsContainer() {
-                const checkedTrades = Array.from(modal.querySelectorAll('.trade-checkbox:checked')).map(cb => cb.value);
-                const container = document.getElementById('tradeProductsContainer');
-                
-                container.innerHTML = checkedTrades.map(trade => `
-                    <div class="mb-6 p-4 border rounded-lg trade-section" data-trade="${trade}">
-                        <h3 class="text-lg font-semibold mb-4 capitalize">${trade} Products</h3>
-                        <div id="products-${trade}">
-                            <!-- Products will be added here -->
-                        </div>
-                        <button onclick="addProduct('${trade}')" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 mt-2">
-                            ➕ Add ${trade} Product
-                        </button>
-                    </div>
-                `).join('');
-            }
-            
-            // Function to save room edits
-            window.saveRoomEdits = function(roomId) {
-                const roomToEdit = rooms.find(r => r.id === roomId);
-                if (!roomToEdit) return;
-                
-                // Update basic info
-                roomToEdit.name = document.getElementById('editRoomName').value;
-                roomToEdit.area = parseInt(document.getElementById('editRoomArea').value);
-                roomToEdit.trades = Array.from(modal.querySelectorAll('.trade-checkbox:checked')).map(cb => cb.value);
-                
-                // Update products
-                roomToEdit.products = {};
-                roomToEdit.trades.forEach(trade => {
-                    roomToEdit.products[trade] = [];
-                    const tradeSection = modal.querySelector(`[data-trade="${trade}"]`);
-                    if (tradeSection) {
-                        const productRows = tradeSection.querySelectorAll('.product-row');
-                        productRows.forEach(row => {
-                            const inputs = row.querySelectorAll('input, select');
-                            const product = {
-                                name: inputs[0].value,
-                                quantity: parseFloat(inputs[1].value) || 1,
-                                cost: parseFloat(inputs[2].value) || 0,
-                                laborHours: parseFloat(inputs[3].value) || 0
-                            };
-                            roomToEdit.products[trade].push(product);
-                        });
-                    }
-                });
-                
-                // Close modal and update displays
-                modal.remove();
-                updateRoomsList();
-                updateRoomEditor();
-                updateCosts();
-                alert(`✅ ${roomToEdit.name} updated with custom products!`);
-            };
+            const newName = prompt('Room name:', room.name);
+            if (newName) room.name = newName;
+
+            const newArea = prompt('Room area (sq ft):', room.area);
+            if (newArea && !isNaN(newArea)) room.area = parseInt(newArea);
+
+            updateRoomsList();
+            updateRoomEditor();
+            updateCosts();
+            alert(`✅ ${room.name} updated`);
         }
 
         // Delete room
@@ -946,7 +762,7 @@
                                 <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
                                     <div>
                                         <span class="font-medium">${item.name}</span>
-                                        <span class="text-sm text-gray-600"> - ${item.cost.toFixed(2)} per ${item.unit}</span>
+                                        <span class="text-sm text-gray-600"> - $${item.cost} per ${item.unit}</span>
                                     </div>
                                     <button onclick="deleteItem('${trade}', ${index})" class="text-red-600 hover:text-red-800 text-sm">
                                         🗑️
