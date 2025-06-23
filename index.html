@@ -186,6 +186,18 @@
                     </div>
                 </div>
 
+                <!-- Cost View Toggle -->
+                <div class="mb-4">
+                    <div class="flex bg-gray-100 rounded-lg p-1">
+                        <button id="tradeViewBtn" onclick="toggleCostView('trade')" class="flex-1 py-2 px-3 text-sm rounded-md bg-blue-600 text-white">
+                            By Trade
+                        </button>
+                        <button id="roomViewBtn" onclick="toggleCostView('room')" class="flex-1 py-2 px-3 text-sm rounded-md text-gray-600 hover:text-gray-800">
+                            By Room
+                        </button>
+                    </div>
+                </div>
+
                 <div id="costBreakdown" class="mb-4">
                     <p class="text-gray-500">Add rooms to see costs</p>
                 </div>
@@ -286,6 +298,7 @@
         let selectedTrade = null;
         let uploadedImage = null;
         let currentPriceBookId = 1;
+        let costViewMode = 'trade'; // 'trade' or 'room'
 
         // Price books data
         let priceBooks = [
@@ -597,6 +610,25 @@
             alert(`💡 Highlighting ${trade} trade`);
         }
 
+        // Toggle cost view
+        function toggleCostView(mode) {
+            costViewMode = mode;
+            
+            // Update button styles
+            const tradeBtn = document.getElementById('tradeViewBtn');
+            const roomBtn = document.getElementById('roomViewBtn');
+            
+            if (mode === 'trade') {
+                tradeBtn.className = 'flex-1 py-2 px-3 text-sm rounded-md bg-blue-600 text-white';
+                roomBtn.className = 'flex-1 py-2 px-3 text-sm rounded-md text-gray-600 hover:text-gray-800';
+            } else {
+                tradeBtn.className = 'flex-1 py-2 px-3 text-sm rounded-md text-gray-600 hover:text-gray-800';
+                roomBtn.className = 'flex-1 py-2 px-3 text-sm rounded-md bg-blue-600 text-white';
+            }
+            
+            updateCosts();
+        }
+
         // Update costs
         function updateCosts() {
             const laborRate = parseFloat(document.getElementById('laborRate').value) || 85;
@@ -606,8 +638,11 @@
 
             let totalCost = 0;
             const costsByTrade = {};
+            const costsByRoom = {};
 
             rooms.forEach(room => {
+                let roomTotal = 0;
+                
                 room.trades.forEach(trade => {
                     const items = activeBook?.items[trade] || [];
                     const avgCost = items.length > 0 ? 
@@ -638,23 +673,35 @@
                     if (!costsByTrade[trade]) costsByTrade[trade] = 0;
                     costsByTrade[trade] += totalTradeCost;
                     totalCost += totalTradeCost;
+                    roomTotal += totalTradeCost;
                 });
+                
+                costsByRoom[room.name] = roomTotal;
             });
 
-            // Update display
+            // Update display based on view mode
             const costBreakdown = document.getElementById('costBreakdown');
-            if (Object.keys(costsByTrade).length === 0) {
+            if (rooms.length === 0) {
                 costBreakdown.innerHTML = '<p class="text-gray-500">Add rooms to see costs</p>';
             } else {
-                costBreakdown.innerHTML = Object.entries(costsByTrade).map(([trade, cost]) => `
-                    <div class="flex justify-between py-2 border-b">
-                        <span class="capitalize font-medium">${trade}</span>
-                        <span class="text-blue-600">$${Math.round(cost).toLocaleString()}</span>
-                    </div>
-                `).join('');
+                if (costViewMode === 'trade') {
+                    costBreakdown.innerHTML = Object.entries(costsByTrade).map(([trade, cost]) => `
+                        <div class="flex justify-between py-2 border-b">
+                            <span class="capitalize font-medium">${trade}</span>
+                            <span class="text-blue-600">${Math.round(cost).toLocaleString()}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    costBreakdown.innerHTML = Object.entries(costsByRoom).map(([room, cost]) => `
+                        <div class="flex justify-between py-2 border-b">
+                            <span class="font-medium">${room}</span>
+                            <span class="text-blue-600">${Math.round(cost).toLocaleString()}</span>
+                        </div>
+                    `).join('');
+                }
             }
 
-            document.getElementById('totalCost').textContent = `$${Math.round(totalCost).toLocaleString()}`;
+            document.getElementById('totalCost').textContent = `${Math.round(totalCost).toLocaleString()}`;
             document.getElementById('roomCount').textContent = rooms.length;
         }
 
@@ -796,36 +843,143 @@
                 const projectName = document.getElementById('projectName').value || 'Untitled Project';
                 const customerName = document.getElementById('customerName').value || 'Customer';
                 const projectAddress = document.getElementById('projectAddress').value || 'Address';
+                const laborRate = parseFloat(document.getElementById('laborRate').value) || 85;
+                const markupPercent = parseFloat(document.getElementById('markupPercent').value) || 25;
+                const activeBook = priceBooks.find(book => book.active);
+                const multiplier = activeBook ? activeBook.multiplier : 1.0;
                 
                 doc.text(`Project: ${projectName}`, 20, 40);
                 doc.text(`Customer: ${customerName}`, 20, 50);
                 doc.text(`Address: ${projectAddress}`, 20, 60);
                 doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 70);
+                doc.text(`Price Book: ${activeBook?.name || 'Standard'} (${multiplier}x)`, 20, 80);
+                doc.text(`Labor Rate: ${laborRate}/hr | Markup: ${markupPercent}%`, 20, 90);
                 
-                // Room details
+                // Detailed Room Breakdown
                 doc.setFontSize(14);
-                doc.text('Room Breakdown:', 20, 90);
+                doc.text('Detailed Cost Breakdown:', 20, 110);
                 
-                let yPos = 105;
-                rooms.forEach((room, index) => {
+                let yPos = 125;
+                let grandTotal = 0;
+                
+                rooms.forEach((room, roomIndex) => {
+                    // Check if we need a new page
+                    if (yPos > 250) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                    
                     doc.setFontSize(12);
-                    doc.text(`${index + 1}. ${room.name} (${room.area} sq ft)`, 25, yPos);
-                    doc.text(`   Trades: ${room.trades.join(', ')}`, 25, yPos + 10);
-                    yPos += 25;
+                    doc.setFont(undefined, 'bold');
+                    doc.text(`${roomIndex + 1}. ${room.name} (${room.area} sq ft)`, 25, yPos);
+                    doc.setFont(undefined, 'normal');
+                    yPos += 15;
+                    
+                    let roomTotal = 0;
+                    
+                    room.trades.forEach(trade => {
+                        const items = activeBook?.items[trade] || [];
+                        const avgCost = items.length > 0 ? 
+                            items.reduce((sum, item) => sum + item.cost, 0) / items.length : 30;
+                        
+                        let cost = 0;
+                        let description = '';
+                        
+                        switch(trade) {
+                            case 'flooring':
+                                cost = room.area * avgCost * multiplier;
+                                description = `${room.area} sq ft × ${(avgCost * multiplier).toFixed(2)}`;
+                                break;
+                            case 'electrical':
+                                cost = (room.area / 20) * avgCost * multiplier;
+                                description = `${(room.area / 20).toFixed(1)} units × ${(avgCost * multiplier).toFixed(2)}`;
+                                break;
+                            case 'plumbing':
+                                cost = (room.area / 50) * avgCost * multiplier;
+                                description = `${(room.area / 50).toFixed(1)} units × ${(avgCost * multiplier).toFixed(2)}`;
+                                break;
+                            case 'hvac':
+                                cost = (room.area / 30) * avgCost * multiplier;
+                                description = `${(room.area / 30).toFixed(1)} units × ${(avgCost * multiplier).toFixed(2)}`;
+                                break;
+                            default:
+                                cost = room.area * 5 * multiplier;
+                                description = `${room.area} sq ft × ${(5 * multiplier).toFixed(2)}`;
+                        }
+                        
+                        const laborHours = cost / 100;
+                        const laborCost = laborHours * laborRate;
+                        const totalTradeCost = (cost + laborCost) * (1 + markupPercent / 100);
+                        
+                        // Trade line
+                        doc.text(`   ${trade.charAt(0).toUpperCase() + trade.slice(1)}: ${description}`, 30, yPos);
+                        doc.text(`${cost.toFixed(0)}`, 160, yPos);
+                        yPos += 10;
+                        
+                        // Labor line
+                        doc.text(`   + Labor: ${laborHours.toFixed(1)} hrs × ${laborRate}`, 30, yPos);
+                        doc.text(`${laborCost.toFixed(0)}`, 160, yPos);
+                        yPos += 10;
+                        
+                        // Markup line
+                        doc.text(`   + Markup: ${markupPercent}%`, 30, yPos);
+                        doc.text(`${(totalTradeCost - cost - laborCost).toFixed(0)}`, 160, yPos);
+                        yPos += 10;
+                        
+                        // Trade total
+                        doc.setFont(undefined, 'bold');
+                        doc.text(`   Trade Total:`, 30, yPos);
+                        doc.text(`${totalTradeCost.toFixed(0)}`, 160, yPos);
+                        doc.setFont(undefined, 'normal');
+                        yPos += 15;
+                        
+                        roomTotal += totalTradeCost;
+                    });
+                    
+                    // Room total
+                    doc.setFont(undefined, 'bold');
+                    doc.text(`${room.name} Total:`, 25, yPos);
+                    doc.text(`${roomTotal.toFixed(0)}`, 160, yPos);
+                    doc.setFont(undefined, 'normal');
+                    yPos += 20;
+                    
+                    grandTotal += roomTotal;
                 });
                 
-                // Total
-                doc.setFontSize(16);
-                doc.text(`Total: ${document.getElementById('totalCost').textContent}`, 20, yPos + 20);
+                // Grand total
+                if (yPos > 250) {
+                    doc.addPage();
+                    yPos = 40;
+                }
                 
-                doc.save(`${projectName.replace(/\s+/g, '_')}_quote.pdf`);
-                alert('✅ PDF quote generated and downloaded!');
+                doc.setFontSize(16);
+                doc.setFont(undefined, 'bold');
+                doc.text('PROJECT TOTAL:', 25, yPos);
+                doc.text(`${grandTotal.toFixed(0)}`, 160, yPos);
+                
+                // Summary section
+                yPos += 20;
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'normal');
+                doc.text('Summary:', 25, yPos);
+                yPos += 15;
+                doc.text(`Total Rooms: ${rooms.length}`, 30, yPos);
+                yPos += 10;
+                doc.text(`Price Book: ${activeBook?.name || 'Standard'}`, 30, yPos);
+                yPos += 10;
+                doc.text(`Labor Rate: ${laborRate}/hour`, 30, yPos);
+                yPos += 10;
+                doc.text(`Markup: ${markupPercent}%`, 30, yPos);
+                
+                doc.save(`${projectName.replace(/\s+/g, '_')}_detailed_quote.pdf`);
+                alert('✅ Detailed PDF quote generated and downloaded!');
             } catch (error) {
                 alert('❌ Error generating PDF quote');
+                console.error(error);
             }
         }
 
-        // Show cost breakdown - EXACT SAME CALCULATION AS updateCosts()
+        // Show cost breakdown - Use modal instead of alert
         function showCostBreakdown() {
             if (rooms.length === 0) {
                 alert('❌ Please add rooms to see cost breakdown');
@@ -837,15 +991,15 @@
             const activeBook = priceBooks.find(book => book.active);
             const multiplier = activeBook ? activeBook.multiplier : 1.0;
             
-            let breakdown = `Cost Breakdown (Using: ${activeBook?.name || 'Standard'})\n`;
-            breakdown += `Labor Rate: $${laborRate}/hr | Markup: ${markupPercent}% | Price Book Multiplier: ${multiplier}x\n\n`;
+            let breakdown = `<div class="max-h-96 overflow-y-auto">`;
+            breakdown += `<h3 class="text-lg font-bold mb-4">Cost Breakdown (${activeBook?.name || 'Standard'})</h3>`;
+            breakdown += `<div class="text-sm text-gray-600 mb-4">Labor Rate: ${laborRate}/hr | Markup: ${markupPercent}% | Price Book Multiplier: ${multiplier}x</div>`;
             
             let totalCost = 0;
-            const costsByTrade = {};
             
-            // Use EXACT same calculation as updateCosts()
             rooms.forEach(room => {
-                breakdown += `📍 ${room.name} (${room.area} sq ft):\n`;
+                breakdown += `<div class="mb-6 p-4 bg-gray-50 rounded-lg">`;
+                breakdown += `<h4 class="font-semibold text-blue-900 mb-3">📍 ${room.name} (${room.area} sq ft)</h4>`;
                 let roomTotal = 0;
                 
                 room.trades.forEach(trade => {
@@ -854,60 +1008,80 @@
                         items.reduce((sum, item) => sum + item.cost, 0) / items.length : 30;
                     
                     let cost = 0;
+                    let description = '';
+                    
                     switch(trade) {
                         case 'flooring':
                             cost = room.area * avgCost * multiplier;
-                            breakdown += `  🏠 Flooring: ${room.area} sq ft × $${(avgCost * multiplier).toFixed(2)} = $${cost.toFixed(0)}\n`;
+                            description = `${room.area} sq ft × ${(avgCost * multiplier).toFixed(2)}`;
                             break;
                         case 'electrical':
                             cost = (room.area / 20) * avgCost * multiplier;
-                            breakdown += `  💡 Electrical: ${(room.area / 20).toFixed(1)} units × $${(avgCost * multiplier).toFixed(2)} = $${cost.toFixed(0)}\n`;
+                            description = `${(room.area / 20).toFixed(1)} units × ${(avgCost * multiplier).toFixed(2)}`;
                             break;
                         case 'plumbing':
                             cost = (room.area / 50) * avgCost * multiplier;
-                            breakdown += `  🚰 Plumbing: ${(room.area / 50).toFixed(1)} units × $${(avgCost * multiplier).toFixed(2)} = $${cost.toFixed(0)}\n`;
+                            description = `${(room.area / 50).toFixed(1)} units × ${(avgCost * multiplier).toFixed(2)}`;
                             break;
                         case 'hvac':
                             cost = (room.area / 30) * avgCost * multiplier;
-                            breakdown += `  🌡️ HVAC: ${(room.area / 30).toFixed(1)} units × $${(avgCost * multiplier).toFixed(2)} = $${cost.toFixed(0)}\n`;
+                            description = `${(room.area / 30).toFixed(1)} units × ${(avgCost * multiplier).toFixed(2)}`;
                             break;
                         default:
                             cost = room.area * 5 * multiplier;
-                            breakdown += `  🔧 ${trade}: ${room.area} sq ft × $${(5 * multiplier).toFixed(2)} = $${cost.toFixed(0)}\n`;
+                            description = `${room.area} sq ft × ${(5 * multiplier).toFixed(2)}`;
                     }
                     
                     const laborHours = cost / 100;
                     const laborCost = laborHours * laborRate;
                     const totalTradeCost = (cost + laborCost) * (1 + markupPercent / 100);
                     
-                    breakdown += `    + Labor: ${laborHours.toFixed(1)} hrs × $${laborRate} = $${laborCost.toFixed(0)}\n`;
-                    breakdown += `    + Markup: ${markupPercent}% = $${(totalTradeCost - cost - laborCost).toFixed(0)}\n`;
-                    breakdown += `    = Trade Total: $${totalTradeCost.toFixed(0)}\n\n`;
+                    breakdown += `<div class="ml-4 mb-3 p-3 bg-white rounded border-l-4 border-blue-500">`;
+                    breakdown += `<div class="font-medium text-gray-800 capitalize mb-2">${trade}</div>`;
+                    breakdown += `<div class="text-sm space-y-1">`;
+                    breakdown += `<div>Materials: ${description} = ${cost.toFixed(0)}</div>`;
+                    breakdown += `<div>Labor: ${laborHours.toFixed(1)} hrs × ${laborRate} = ${laborCost.toFixed(0)}</div>`;
+                    breakdown += `<div>Markup: ${markupPercent}% = ${(totalTradeCost - cost - laborCost).toFixed(0)}</div>`;
+                    breakdown += `<div class="font-semibold text-blue-600 pt-2 border-t">Trade Total: ${totalTradeCost.toFixed(0)}</div>`;
+                    breakdown += `</div></div>`;
                     
-                    if (!costsByTrade[trade]) costsByTrade[trade] = 0;
-                    costsByTrade[trade] += totalTradeCost;
-                    totalCost += totalTradeCost;
                     roomTotal += totalTradeCost;
                 });
                 
-                breakdown += `  🏠 ${room.name} Total: $${roomTotal.toFixed(0)}\n\n`;
+                breakdown += `<div class="font-bold text-lg text-blue-900 mt-4 pt-3 border-t border-blue-200">`;
+                breakdown += `${room.name} Total: ${roomTotal.toFixed(0)}</div>`;
+                breakdown += `</div>`;
+                totalCost += roomTotal;
             });
             
-            // Show price book details
-            breakdown += `📚 Price Book Details (${activeBook?.name || 'Standard'}):\n`;
-            if (activeBook) {
-                Object.entries(activeBook.items).forEach(([trade, items]) => {
-                    if (items.length > 0) {
-                        const avgCost = items.reduce((sum, item) => sum + item.cost, 0) / items.length;
-                        breakdown += `  ${trade}: ${items.length} items, avg $${avgCost.toFixed(2)}\n`;
-                    }
-                });
-            }
+            breakdown += `<div class="text-center p-4 bg-blue-50 rounded-lg mt-6">`;
+            breakdown += `<div class="text-2xl font-bold text-blue-900">💰 PROJECT TOTAL: ${Math.round(totalCost).toLocaleString()}</div>`;
+            breakdown += `<div class="text-sm text-blue-700 mt-2">(Matches main display: ${document.getElementById('totalCost').textContent})</div>`;
+            breakdown += `</div></div>`;
             
-            breakdown += `\n💰 GRAND TOTAL: $${Math.round(totalCost).toLocaleString()}`;
-            breakdown += `\n(Matches main display: ${document.getElementById('totalCost').textContent})`;
+            // Create and show modal
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-screen overflow-hidden">
+                    <div class="p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-bold">📊 Detailed Cost Breakdown</h2>
+                            <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700 text-2xl">
+                                &times;
+                            </button>
+                        </div>
+                        ${breakdown}
+                        <div class="mt-6 text-center">
+                            <button onclick="this.closest('.fixed').remove()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
             
-            alert(breakdown);
+            document.body.appendChild(modal);
         }
 
         // Present to customer
