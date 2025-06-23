@@ -673,53 +673,7 @@
             });
         }
 
-        function detectRoomsFromImageData(imageData, width, height) {
-            const data = imageData.data;
-            const rooms = [];
-            
-            // Convert to grayscale for easier processing
-            const grayscale = new Uint8Array(width * height);
-            for (let i = 0; i < data.length; i += 4) {
-                const gray = (data[i] + data[i + 1] + data[i + 2]) / 3;
-                grayscale[i / 4] = gray;
-            }
-            
-            // Find potential room areas
-            const threshold = 200; // White/light areas (rooms)
-            const minRoomSize = Math.floor((width * height) * 0.01); // Minimum 1% of image
-            const maxRoomSize = Math.floor((width * height) * 0.3);  // Maximum 30% of image
-            
-            const visited = new Array(width * height).fill(false);
-            const roomTypes = ['living', 'kitchen', 'bedroom', 'bathroom', 'garage', 'office'];
-            
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    const index = y * width + x;
-                    
-                    if (!visited[index] && grayscale[index] > threshold) {
-                        // Found a light area, perform flood fill
-                        const area = floodFill(grayscale, visited, x, y, width, height, threshold);
-                        
-                        if (area.size >= minRoomSize && area.size <= maxRoomSize) {
-                            // Calculate room bounds and center
-                            const bounds = calculateBounds(area.pixels);
-                            const center = {
-                                x: (bounds.minX + bounds.maxX) / 2,
-                                y: (bounds.minY + bounds.maxY) / 2
-                            };
-                            
-                            // Scale coordinates to editor size (400px height)
-                            const editorHeight = 400;
-                            const editorWidth = 600; // Approximate editor width
-                            const scaleX = editorWidth / width;
-                            const scaleY = editorHeight / height;
-                            
-                            const roomData = {
-                                name: generateRoomName(center, width, height, rooms.length),
-                                area: estimateRoomArea(area.size, width, height),
-                                type: determineRoomType(center, width, height, area.size),
-                                position: {
-                                    x: Math.floor(center.x * scaleX) - 30,
+ scaleX) - 30,
                                     y: Math.floor(center.y * scaleY) - 20,
                                     width: Math.max(60, Math.min(120, Math.floor((bounds.maxX - bounds.minX) * scaleX))),
                                     height: Math.max(40, Math.min(80, Math.floor((bounds.maxY - bounds.minY) * scaleY)))
